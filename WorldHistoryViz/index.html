@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全球历史地图 - 地理视角下的世界历史变迁</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/timeline.css">
+    <link rel="stylesheet" href="css/events.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        /* 事件图标样式 */
+        .event-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            background-color: white;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            font-size: 16px;
+            color: #333;
+            border: 2px solid #4a89dc;
+        }
+        
+        .event-icon.农业 { border-color: #4CAF50; }
+        .event-icon.技术 { border-color: #2196F3; }
+        .event-icon.文明 { border-color: #9C27B0; }
+        .event-icon.征服 { border-color: #F44336; }
+        .event-icon.疾病 { border-color: #FF9800; }
+        .event-icon.迁徙 { border-color: #795548; }
+        .event-icon.探索 { border-color: #607D8B; }
+        .event-icon.贸易 { border-color: #FFEB3B; color: #5D4037; }
+        .event-icon.气候 { border-color: #00BCD4; }
+        .event-icon.政治 { border-color: #3F51B5; }
+        
+        /* 迁徙箭头样式 */
+        .migration-arrow {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <h1>全球历史地图 <span class="subtitle">枪炮、病毒与钢铁的视角</span></h1>
+        </header>
+        
+        <main>
+            <div class="sidebar">
+                <div class="control-panel">
+                    <h2>时间线控制</h2>
+                    <div class="time-control">
+                        <div class="time-buttons">
+                            <div class="preset-years">
+                                <button class="year-btn" data-year="-10000">公元前10000年</button>
+                                <button class="year-btn" data-year="-8000">公元前8000年</button>
+                                <button class="year-btn" data-year="-5000">公元前5000年</button>
+                                <button class="year-btn" data-year="-3000">公元前3000年</button>
+                                <button class="year-btn" data-year="-1000">公元前1000年</button>
+                                <button class="year-btn" data-year="0">公元元年</button>
+                                <button class="year-btn" data-year="1000">公元1000年</button>
+                                <button class="year-btn" data-year="1900">公元1900年</button>
+                                <button class="year-btn" data-year="2000">公元2000年</button>
+                            </div>
+                            <div class="year-navigation">
+                                <button id="year-decrement">-100年</button>
+                                <span id="year-display">公元0年</span>
+                                <button id="year-increment">+100年</button>
+                            </div>
+                        </div>
+                        <div id="timeline" class="timeline">
+                            <!-- 时间线标记将由JavaScript动态生成 -->
+                        </div>
+                        <input type="range" id="year-slider" min="-10000" max="2000" value="0" step="100" class="timeline-slider">
+                        
+                        <div class="year-input-container" style="margin-top: 10px; display: flex; gap: 10px;">
+                            <input type="number" id="year-input" value="0" min="-10000" max="2000" step="100" style="flex: 1; padding: 5px;">
+                            <button id="go-to-year" class="control-btn" style="white-space: nowrap;">跳转</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="events-panel">
+                    <h2>历史事件 <span id="events-year-range"></span></h2>
+                    <div class="filter-controls">
+                        <select id="category-filter">
+                            <option value="all">全部类别</option>
+                            <option value="农业">农业</option>
+                            <option value="技术">技术</option>
+                            <option value="文明">文明</option>
+                            <option value="征服">征服</option>
+                            <option value="疾病">疾病</option>
+                            <option value="迁徙">迁徙</option>
+                            <option value="探索">探索</option>
+                            <option value="贸易">贸易</option>
+                            <option value="气候">气候</option>
+                            <option value="政治">政治</option>
+                        </select>
+                        <select id="importance-filter">
+                            <option value="all">全部重要性</option>
+                            <option value="5">★★★★★</option>
+                            <option value="4">★★★★以上</option>
+                            <option value="3">★★★以上</option>
+                            <option value="2">★★以上</option>
+                        </select>
+                    </div>
+                    <div id="events-list" class="events-container">
+                        <!-- 事件列表将由JavaScript动态生成 -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="map-container">
+                <div class="map-controls">
+                    <div class="toggle-controls">
+                        <button id="toggle-events" class="control-btn">显示/隐藏事件</button>
+                        <button id="toggle-migrations" class="control-btn">显示/隐藏迁徙路线</button>
+                    </div>
+                </div>
+                <div id="map" class="map"></div>
+                <div id="map-error" style="display: none; padding: 20px; text-align: center; color: #e74c3c;">
+                    地图加载出错，请刷新页面重试
+                </div>
+                <div id="event-details" class="event-details-panel hidden">
+                    <button id="close-details" class="close-btn">×</button>
+                    <div id="event-details-content"></div>
+                </div>
+            </div>
+        </main>
+        
+        <footer>
+            <p>数据来源：基于贾雷德·戴蒙德《枪炮、病毒与钢铁》的历史事件和地理数据</p>
+        </footer>
+    </div>
+    
+    <div id="loading-indicator" class="loading-indicator hidden">
+        <div class="spinner"></div>
+        <p>加载中...</p>
+    </div>
+    
+    <div id="error-container" class="error-container hidden">
+        <div class="error-box">
+            <h3>出错了</h3>
+            <p id="error-message"></p>
+            <button id="dismiss-error" class="btn">确定</button>
+        </div>
+    </div>
+    
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script type="module" src="js/events-data.js"></script>
+    <script type="module" src="js/migrations-data.js"></script>
+    <script type="module" src="js/map-utils.js"></script>
+    <script type="module" src="js/main.js"></script>
+</body>
+</html> 

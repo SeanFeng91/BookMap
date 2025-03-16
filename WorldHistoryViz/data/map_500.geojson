@@ -1,0 +1,164 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "拜占庭帝国",
+        "type": "byzantine",
+        "description": "东罗马帝国，查士丁尼时期拜占庭帝国"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [10.0, 45.0],
+            [28.0, 48.0],
+            [40.0, 45.0],
+            [42.0, 40.0],
+            [38.0, 30.0],
+            [25.0, 25.0],
+            [8.0, 30.0],
+            [-5.0, 35.0],
+            [0.0, 40.0],
+            [10.0, 45.0]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "萨珊波斯帝国",
+        "type": "persian",
+        "description": "占据中东地区的萨珊波斯帝国"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [40.0, 40.0],
+            [60.0, 45.0],
+            [70.0, 40.0],
+            [70.0, 30.0],
+            [60.0, 22.0],
+            [45.0, 22.0],
+            [40.0, 30.0],
+            [40.0, 40.0]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "北魏",
+        "type": "china",
+        "description": "中国北朝时期的北魏政权"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [100.0, 42.0],
+            [122.0, 42.0],
+            [126.0, 38.0],
+            [120.0, 33.0],
+            [115.0, 30.0],
+            [105.0, 28.0],
+            [95.0, 30.0],
+            [95.0, 35.0],
+            [100.0, 42.0]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "南朝",
+        "type": "china",
+        "description": "中国南朝时期的梁朝政权"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [110.0, 33.0],
+            [120.0, 33.0],
+            [122.0, 30.0],
+            [120.0, 25.0],
+            [115.0, 22.0],
+            [110.0, 22.0],
+            [105.0, 25.0],
+            [105.0, 28.0],
+            [110.0, 33.0]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "瓜蒂亚文明",
+        "type": "mesoamerica",
+        "description": "中美洲地区的后古典期玛雅文明"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-92.0, 21.0],
+            [-87.0, 21.0],
+            [-87.0, 14.0],
+            [-92.0, 14.0],
+            [-92.0, 21.0]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "阿克苏姆王国",
+        "type": "africa",
+        "description": "非洲之角的阿克苏姆王国，早期接受基督教的非洲王国"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [35.0, 15.0],
+            [43.0, 15.0],
+            [43.0, 8.0],
+            [35.0, 8.0],
+            [35.0, 15.0]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "古普塔帝国",
+        "type": "indus_valley",
+        "description": "印度次大陆的古普塔帝国晚期"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [70.0, 35.0],
+            [85.0, 30.0],
+            [88.0, 25.0],
+            [85.0, 20.0],
+            [78.0, 15.0],
+            [72.0, 20.0],
+            [70.0, 25.0],
+            [70.0, 35.0]
+          ]
+        ]
+      }
+    }
+  ]
+} 
