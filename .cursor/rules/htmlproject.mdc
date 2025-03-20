@@ -1,0 +1,58 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Vue + Tailwind 项目代码规范
+
+## 项目结构
+- `src/assets/` - 静态资源
+- `src/components/` - 通用组件
+  - `ui/` - 基础UI组件
+  - `common/` - 业务通用组件
+- `src/composables/` - 组合式函数
+- `src/layouts/` - 布局组件
+- `src/pages/` - 页面组件
+- `src/router/` - 路由配置
+- `src/services/` - API服务
+- `src/stores/` - 状态管理
+- `src/types/` - TypeScript类型定义
+- `src/utils/` - 工具函数
+
+## 命名规范
+- 组件文件：PascalCase (如 `UserProfile.vue`)
+- 组合式函数：camelCase + use前缀 (如 `useAuth.ts`)
+- 工具函数：camelCase (如 `formatDate.ts`)
+- 类型定义：[名称].types.ts (如 `user.types.ts`)
+- 变量/函数：camelCase (如 `userData`, `getUserInfo()`)
+- 常量：UPPER_SNAKE_CASE (如 `API_BASE_URL`)
+- 布尔值：is/has/should前缀 (如 `isLoading`, `hasPermission`)
+
+## Vue组件规范
+- 使用 `<script setup>` 语法
+- 导入顺序：类型 > 组件 > 组合式函数 > 其他
+- Props定义使用运行时校验
+- 每个组件只做一件事，保持简洁
+
+## API服务规范
+- 所有API调用集中在 `services/` 目录
+- 按功能模块拆分服务 (如 `userService.ts`)
+- 使用统一的错误处理
+- 返回类型明确的Promise
+
+## Tailwind CSS规范
+- 类名顺序：布局 > 尺寸 > 间距 > 背景 > 边框 > 字体 > 其他
+- 重复使用的类组合应提取为组件或自定义类
+- 避免行内样式混杂过多类名，组件化设计
+
+## 状态管理
+- 使用Pinia管理全局状态
+- Store按功能模块拆分
+- 使用TypeScript强类型定义状态
+- 异步操作放在actions中处理
+
+## 最佳实践
+- 组件命名用双词避免冲突 (如 `UserList` 而非 `Users`)
+- API路径使用常量管理
+- 使用环境变量管理配置
+- 所有响应式数据声明类型
