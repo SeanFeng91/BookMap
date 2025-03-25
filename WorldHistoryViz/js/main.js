@@ -18,6 +18,7 @@ let playInterval;
 let playSpeed = 50; // 默认速度：每帧前进50年
 let showEvents = true;
 let showMigrations = true;
+let jsonData = {}; // 存储从data目录加载的JSON数据
 
 // 颜色映射 - 对应不同文明/地区
 const colorMap = {
@@ -55,6 +56,11 @@ const speedDropdown = document.getElementById('speed-dropdown');
 const toggleEventsBtn = document.getElementById('toggle-events');
 const toggleMigrationsBtn = document.getElementById('toggle-migrations');
 
+// 时间轴常量
+const TIME_SPAN = 2000; // 时间轴显示的年份跨度
+const MIN_YEAR = -10000; // 最小年份
+const MAX_YEAR = 2000;   // 最大年份
+
 // 初始化函数
 function init() {
     console.log('初始化世界历史可视化应用...');
@@ -79,6 +85,12 @@ function init() {
     
     // 初始化事件列表
     renderEventsList();
+    
+    // 初始化类别按钮
+    initCategoryButtons();
+    
+    // 加载data目录中的JSON数据
+    loadDataFiles();
     
     // 更新到默认年份
     updateToYear(currentYear);
@@ -142,131 +154,59 @@ function initMap() {
 
 // 初始化时间轴
 function initTimeline() {
-    console.log('初始化时间线');
+    console.log('初始化时间轴');
     
     try {
-        const timeline = document.getElementById('timeline');
         const yearSlider = document.getElementById('year-slider');
+        const yearInput = document.getElementById('year-input');
+        const goToYearBtn = document.getElementById('go-to-year');
         
         // 设置时间范围
-        const minYear = -10000;
-        const maxYear = 2000;
-        const step = 100; // 整百年步进
-        
-        // 创建时间线刻度
-        const keyYears = [];
-        for (let year = minYear; year <= maxYear; year += step) {
-            keyYears.push(year);
+        if (yearSlider) {
+            yearSlider.min = MIN_YEAR;
+            yearSlider.max = MAX_YEAR;
+            yearSlider.value = currentYear;
+            
+            // 监听滑块变化事件
+            yearSlider.addEventListener('input', function(e) {
+                const year = parseInt(e.target.value);
+                updateYearDisplay(year);
+            });
+            
+            yearSlider.addEventListener('change', function(e) {
+                const year = parseInt(e.target.value);
+                updateToYear(year);
+            });
         }
         
-        // 添加时间线刻度标记
-        createTimelineMarkers(keyYears, timeline);
-        
-        // 初始化时间滑块
-        yearSlider.min = minYear;
-        yearSlider.max = maxYear;
-        yearSlider.value = currentYear;
-        yearSlider.step = step; // 设置步进为100年
-        
-        // 添加滑块事件监听器
-        yearSlider.addEventListener('input', function(e) {
-            currentYear = parseInt(e.target.value);
-            updateYearDisplay(currentYear);
-        });
-        
-        yearSlider.addEventListener('change', function(e) {
-            currentYear = parseInt(e.target.value);
-            updateMap(currentYear);
-            highlightEventsForYear();
-        });
-        
-        // 添加快速年份选择按钮的事件监听器
-        const yearButtons = document.querySelectorAll('.year-btn');
-        yearButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const year = parseInt(this.getAttribute('data-year'));
-                updateToYear(year);
-                yearSlider.value = currentYear;
+        // 设置年份输入框
+        if (yearInput && goToYearBtn) {
+            // 跳转按钮点击事件
+            goToYearBtn.addEventListener('click', function() {
+                const inputYear = parseInt(yearInput.value);
+                if (!isNaN(inputYear) && inputYear >= MIN_YEAR && inputYear <= MAX_YEAR) {
+                    updateToYear(inputYear);
+                    yearSlider.value = currentYear;
+                }
             });
-        });
+            
+            // 输入框回车事件
+            yearInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const inputYear = parseInt(this.value);
+                    if (!isNaN(inputYear) && inputYear >= MIN_YEAR && inputYear <= MAX_YEAR) {
+                        updateToYear(inputYear);
+                        yearSlider.value = currentYear;
+                    }
+                }
+            });
+        }
         
-        // 添加年份递增/递减按钮的事件监听器
-        document.getElementById('year-decrement').addEventListener('click', function() {
-            updateToYear(currentYear - step);
-            yearSlider.value = currentYear;
-        });
-        
-        document.getElementById('year-increment').addEventListener('click', function() {
-            updateToYear(currentYear + step);
-            yearSlider.value = currentYear;
-        });
-        
-        // 添加输入年份的处理
-        const yearInput = document.getElementById('year-input');
-        yearInput.addEventListener('change', function() {
-            const inputYear = parseInt(this.value);
-            if (!isNaN(inputYear) && inputYear >= minYear && inputYear <= maxYear) {
-                updateToYear(inputYear);
-                yearSlider.value = currentYear;
-            }
-        });
-        
-        console.log('时间线初始化完成');
+        console.log('时间轴初始化完成');
     } catch (error) {
-        console.error('初始化时间线出错:', error);
-        showErrorMessage('初始化时间线失败');
+        console.error('初始化时间轴出错:', error);
+        showErrorMessage('初始化时间轴失败');
     }
-}
-
-// 创建时间线标记
-function createTimelineMarkers(keyYears, container) {
-    console.log('创建时间线标记');
-    
-    // 清空现有标记
-    while (container.firstChild) {
-        container.removeChild(container.firstChild);
-    }
-    
-    // 获取容器宽度
-    const containerWidth = container.clientWidth;
-    
-    // 计算年份范围
-    const minYear = Math.min(...keyYears);
-    const maxYear = Math.max(...keyYears);
-    const yearRange = maxYear - minYear;
-    
-    // 为每个关键年份创建标记
-    keyYears.forEach(year => {
-        try {
-            // 计算标记位置
-            const position = ((year - minYear) / yearRange) * 100;
-            
-            // 创建标记元素
-            const marker = document.createElement('div');
-            marker.classList.add('timeline-marker');
-            marker.setAttribute('data-year', year);
-            marker.style.left = `${position}%`;
-            
-            // 添加标记文本
-            const markerText = document.createElement('span');
-            markerText.classList.add('marker-text');
-            markerText.textContent = formatYear(year);
-            marker.appendChild(markerText);
-            
-            // 添加点击事件
-            marker.addEventListener('click', function() {
-                updateToYear(year);
-                document.getElementById('year-slider').value = currentYear;
-            });
-            
-            // 将标记添加到容器
-            container.appendChild(marker);
-        } catch (error) {
-            console.error(`创建时间线标记 ${year} 时出错:`, error);
-        }
-    });
-    
-    console.log(`已创建 ${keyYears.length} 个时间线标记`);
 }
 
 // 更新年份显示
@@ -289,23 +229,6 @@ function updateYearDisplay(year) {
             yearDisplay.textContent = `公元前 ${Math.abs(yearInt)} 年`;
         } else {
             yearDisplay.textContent = `公元 ${yearInt} 年`;
-        }
-        
-        // 查找最接近的地图年份并显示
-        const closestMap = findClosestMapFile(yearInt);
-        if (!closestMap) {
-            console.warn(`找不到年份 ${yearInt} 对应的地图文件`);
-            return;
-        }
-        
-        const yearInfo = document.getElementById('year-info');
-        if (yearInfo) {
-            if (yearInt !== closestMap.year) {
-                yearInfo.textContent = `(显示最接近的公元${closestMap.year < 0 ? '前' + Math.abs(closestMap.year) : closestMap.year}年地图)`;
-                yearInfo.style.display = 'inline';
-            } else {
-                yearInfo.style.display = 'none';
-            }
         }
     } catch (error) {
         console.error('更新年份显示时发生错误:', error);
@@ -791,7 +714,18 @@ function updateEvents() {
                     `;
                     
                     marker.bindPopup(popupContent);
+                    
+                    // 将marker添加到图层
                     markersLayer.addLayer(marker);
+                    
+                    // 给DOM元素添加数据属性
+                    marker.on('add', function() {
+                        const element = this.getElement();
+                        if (element) {
+                            element.setAttribute('data-category', event.category || 'default');
+                        }
+                    });
+                    
                     console.log(`已添加事件标记: "${event.title}" 在位置 [${lat}, ${lng}]`);
                 } catch (error) {
                     console.error(`为事件 "${event.title}" 创建标记时出错:`, error);
@@ -809,13 +743,12 @@ function updateEvents() {
 function createEventIcon(category) {
     // 根据事件类别创建不同的图标
     const iconMap = {
-        'discovery': 'light-bulb',
-        'war': 'crossed-swords',
-        'politics': 'crown',
-        'culture': 'book',
-        'religion': 'prayer',
-        'disaster': 'explosion',
-        'technology': 'cog',
+        '农业': 'tree',
+        '技术': 'cog',
+        '文明': 'tower',
+        '征服': 'fire',
+        '疾病': 'plus',
+        '迁徙': 'road',
         'default': 'info-sign'
     };
     
@@ -823,7 +756,7 @@ function createEventIcon(category) {
     
     return L.divIcon({
         className: `event-icon ${category}`,
-        html: `<span class="glyphicon glyphicon-${iconType}"></span>`,
+        html: `<i class="fas fa-${iconType}"></i>`,
         iconSize: [30, 30],
         iconAnchor: [15, 15]
     });
@@ -940,14 +873,15 @@ function getAngle(p1, p2) {
 function getMigrationColor(category) {
     // 根据迁徙类别设置颜色
     const colorMap = {
-        'nomadic': '#FF4500',       // 游牧民族迁徙
-        'conquest': '#8B0000',      // 征服迁徙
-        'cultural': '#9932CC',      // 文化传播
-        'trade': '#1E90FF',         // 贸易路线
-        'diaspora': '#228B22',      // 大迁徙/流散
-        'colonization': '#B8860B',  // 殖民扩张
-        'exploration': '#4169E1',   // 探索
-        'default': '#708090'        // 默认颜色
+        '早期人类': '#FF4500',     // 橙红色
+        '农业扩散': '#4CAF50',     // 绿色
+        '人口迁徙': '#9932CC',     // 紫色
+        '航海扩张': '#1E90FF',     // 蓝色
+        '帝国扩张': '#8B0000',     // 深红色
+        '疾病传播': '#FF9800',     // 橙色
+        '殖民扩张': '#B8860B',     // 暗金色
+        '强制迁移': '#FF5722',     // 深橙色
+        'default': '#708090'       // 默认灰色
     };
     
     return colorMap[category] || colorMap['default'];
@@ -1277,34 +1211,40 @@ function initControls() {
 
 // 更新到指定年份
 function updateToYear(year) {
-    try {
-        console.log(`更新地图到年份: ${year}`);
-        
-        // 将年份四舍五入到最近的整百年
-        const roundedYear = Math.round(year / 100) * 100;
-        
-        if (roundedYear !== currentYear) {
-            console.log(`将年份 ${year} 四舍五入到 ${roundedYear}`);
-            currentYear = roundedYear;
-            
-            // 更新年份显示
-            updateYearDisplay(currentYear);
-            
-            // 更新地图
-            updateMap(currentYear);
-            
-            // 更新时间轴上的标记
-            updateTimelineMarker();
-            
-            // 高亮当前年份的事件
-            highlightEventsForYear();
-        } else {
-            console.log(`年份没有变化: ${currentYear}`);
-        }
-    } catch (error) {
-        console.error(`更新年份时出错:`, error);
-        showErrorMessage(`更新年份失败: ${error.message}`);
+    // 确保年份在有效范围内
+    if (year < MIN_YEAR) year = MIN_YEAR;
+    if (year > MAX_YEAR) year = MAX_YEAR;
+    
+    console.log(`更新到年份: ${year}`);
+    
+    // 更新当前年份
+    currentYear = year;
+    
+    // 更新年份显示
+    updateYearDisplay(year);
+    
+    // 更新年份输入框
+    const yearInput = document.getElementById('year-input');
+    if (yearInput) {
+        yearInput.value = year;
     }
+    
+    // 更新地图
+    updateMap(year);
+    
+    // 更新事件显示
+    updateEvents();
+    
+    // 更新迁徙路线
+    updateMigrations();
+    
+    // 更新从JSON数据加载的图层
+    updateDataLayersOnMap();
+    
+    // 高亮当前年份的事件
+    highlightEventsForYear();
+    
+    console.log(`年份更新完成: ${year}`);
 }
 
 // 高亮当前年份的事件
@@ -1360,6 +1300,347 @@ function displayEventDetails(event) {
         <p>${event.description}</p>
         ${event.link ? `<a href="${event.link}" target="_blank" class="btn btn-sm btn-outline-primary">了解更多</a>` : ''}
     `;
+}
+
+// 处理类别按钮切换
+function initCategoryButtons() {
+    const categoryButtons = document.querySelectorAll('.category-btn');
+    
+    categoryButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // 移除其他按钮的active类
+            categoryButtons.forEach(btn => btn.classList.remove('active'));
+            
+            // 添加当前按钮的active类
+            this.classList.add('active');
+            
+            // 获取选中的类别
+            const category = this.getAttribute('data-category');
+            
+            // 根据选中的类别筛选显示事件
+            filterEventsByCategory(category);
+        });
+    });
+}
+
+// 根据类别筛选地图上的事件
+function filterEventsByCategory(category) {
+    const allEventMarkers = document.querySelectorAll('.leaflet-marker-icon');
+    
+    allEventMarkers.forEach(marker => {
+        if (category === 'all') {
+            marker.style.display = 'block';
+        } else {
+            const markerCategory = marker.getAttribute('data-category');
+            marker.style.display = (markerCategory === category) ? 'block' : 'none';
+        }
+    });
+}
+
+// 加载data目录中的JSON数据文件
+async function loadDataFiles() {
+    showLoadingIndicator(true);
+    try {
+        console.log('加载data目录中的JSON数据...');
+        
+        // 需要加载的数据文件列表
+        const dataFiles = [
+            'human_migrations.json',
+            'technological_developments.json',
+            'regional_species.json',
+            'social_organizations.json'
+        ];
+        
+        // 并行加载所有数据文件
+        const promises = dataFiles.map(filename => 
+            fetch(`data/${filename}`)
+                .then(response => {
+                    if (!response.ok) {
+                        console.warn(`加载 ${filename} 失败: ${response.status} ${response.statusText}`);
+                        return { [filename.replace('.json', '')]: [] }; // 返回空数组作为默认值
+                    }
+                    return response.json()
+                        .then(data => {
+                            console.log(`成功加载 ${filename}`);
+                            return { [filename.replace('.json', '')]: data };
+                        })
+                        .catch(error => {
+                            console.warn(`解析 ${filename} 失败:`, error);
+                            return { [filename.replace('.json', '')]: [] }; // 解析失败时返回空数组
+                        });
+                })
+                .catch(error => {
+                    console.warn(`请求 ${filename} 出错:`, error);
+                    return { [filename.replace('.json', '')]: [] }; // 网络错误时返回空数组
+                })
+        );
+        
+        // 等待所有数据加载完成
+        const results = await Promise.all(promises);
+        
+        // 合并所有数据到jsonData对象
+        results.forEach(result => {
+            Object.assign(jsonData, result);
+        });
+        
+        console.log('JSON数据加载完成');
+        console.log(`加载了 ${Object.keys(jsonData).length} 个数据集`);
+        
+        // 更新地图显示
+        updateDataLayersOnMap();
+    } catch (error) {
+        console.error('加载JSON数据时出错:', error);
+        showErrorMessage(`无法加载数据文件: ${error.message}`);
+    } finally {
+        showLoadingIndicator(false);
+    }
+}
+
+// 根据当前年份在地图上显示JSON数据
+function updateDataLayersOnMap() {
+    console.log(`更新JSON数据图层，当前年份: ${currentYear}`);
+    
+    try {
+        // 清除之前的数据标记
+        if (!markersLayer) {
+            markersLayer = L.layerGroup().addTo(map);
+        } else {
+            markersLayer.clearLayers();
+        }
+        
+        // 显示技术发展数据
+        if (jsonData.technological_developments) {
+            displayTechnologicalDevelopments();
+        }
+        
+        // 显示物种分布数据
+        if (jsonData.regional_species) {
+            displayRegionalSpecies();
+        }
+        
+        // 显示社会组织数据
+        if (jsonData.social_organizations) {
+            displaySocialOrganizations();
+        }
+        
+        // 显示人类迁徙数据（除了已有的迁徙路线外）
+        if (jsonData.human_migrations) {
+            displayHumanMigrations();
+        }
+        
+        console.log('JSON数据图层更新完成');
+    } catch (error) {
+        console.error('更新数据图层时出错:', error);
+    }
+}
+
+// 显示技术发展数据
+function displayTechnologicalDevelopments() {
+    const techData = jsonData.technological_developments;
+    if (!Array.isArray(techData)) return;
+    
+    techData.forEach(tech => {
+        // 判断技术是否在当前时间范围内
+        if (tech.发明时间 && isTimeRelevant(tech.发明时间, currentYear)) {
+            // 创建技术图标标记
+            if (tech.发明地点 && tech.发明地点.coordinates) {
+                const coordinates = tech.发明地点.coordinates;
+                const marker = L.marker([coordinates[1], coordinates[0]], {
+                    icon: createCustomIcon('技术', tech.技术名称)
+                });
+                
+                // 添加弹出信息
+                marker.bindPopup(`
+                    <div class="popup-content">
+                        <h3 class="text-lg font-bold">${tech.技术名称}</h3>
+                        <p class="text-sm text-gray-600">时间: ${formatYear(tech.发明时间)}</p>
+                        <p class="mt-2">${tech.技术描述}</p>
+                        <p class="mt-2"><strong>影响:</strong> ${tech.影响描述}</p>
+                    </div>
+                `);
+                
+                // 添加到地图
+                markersLayer.addLayer(marker);
+            }
+        }
+    });
+}
+
+// 显示地区物种数据
+function displayRegionalSpecies() {
+    const speciesData = jsonData.regional_species;
+    if (!Array.isArray(speciesData)) return;
+    
+    speciesData.forEach(species => {
+        // 判断物种驯化是否在当前时间范围内
+        if (species.驯化时间 && isTimeRelevant(species.驯化时间, currentYear)) {
+            // 如果有驯化地点坐标
+            if (species.驯化地点 && species.驯化地点.coordinates) {
+                const coordinates = species.驯化地点.coordinates;
+                const marker = L.marker([coordinates[1], coordinates[0]], {
+                    icon: createCustomIcon('农业', species.物种名称)
+                });
+                
+                // 添加弹出信息
+                marker.bindPopup(`
+                    <div class="popup-content">
+                        <h3 class="text-lg font-bold">${species.物种名称}</h3>
+                        <p class="text-sm text-gray-600">驯化时间: ${formatYear(species.驯化时间)}</p>
+                        <p class="mt-2">类型: ${species.物种类型}</p>
+                        <p>用途: ${species.用途}</p>
+                        <p class="mt-2"><strong>贡献:</strong> ${species.对人类发展的贡献}</p>
+                    </div>
+                `);
+                
+                // 添加到地图
+                markersLayer.addLayer(marker);
+            }
+        }
+    });
+}
+
+// 显示社会组织数据
+function displaySocialOrganizations() {
+    const socialData = jsonData.social_organizations;
+    if (!Array.isArray(socialData)) return;
+    
+    socialData.forEach(org => {
+        // 判断组织是否在当前时间范围内
+        if (org.形成时间 && isTimeRelevant(org.形成时间, currentYear)) {
+            // 如果有中心位置坐标
+            if (org.中心位置 && org.中心位置.coordinates) {
+                const coordinates = org.中心位置.coordinates;
+                const marker = L.marker([coordinates[1], coordinates[0]], {
+                    icon: createCustomIcon('文明', org.组织名称)
+                });
+                
+                // 添加弹出信息
+                marker.bindPopup(`
+                    <div class="popup-content">
+                        <h3 class="text-lg font-bold">${org.组织名称}</h3>
+                        <p class="text-sm text-gray-600">形成时间: ${formatYear(org.形成时间)}</p>
+                        <p class="mt-2">类型: ${org.组织类型}</p>
+                        <p>人口规模: ${org.人口规模 || '未知'}</p>
+                        <p class="mt-2">${org.特点描述}</p>
+                    </div>
+                `);
+                
+                // 添加到地图
+                markersLayer.addLayer(marker);
+            }
+        }
+    });
+}
+
+// 显示人类迁徙数据
+function displayHumanMigrations() {
+    const migrationData = jsonData.human_migrations;
+    if (!Array.isArray(migrationData)) return;
+    
+    migrationData.forEach(migration => {
+        // 判断迁徙是否在当前时间范围内
+        if (migration.起始时间 && migration.结束时间 && 
+            isTimeRangeRelevant(migration.起始时间, migration.结束时间, currentYear)) {
+            
+            // 如果有路径点
+            if (migration.路径点 && Array.isArray(migration.路径点) && migration.路径点.length >= 2) {
+                const pathCoordinates = migration.路径点.map(point => {
+                    if (Array.isArray(point) && point.length === 2) {
+                        return [point[1], point[0]]; // 转换为[lat, lng]格式
+                    }
+                    if (point.coordinates && Array.isArray(point.coordinates) && point.coordinates.length === 2) {
+                        return [point.coordinates[1], point.coordinates[0]];
+                    }
+                    return null;
+                }).filter(point => point !== null);
+                
+                if (pathCoordinates.length >= 2) {
+                    // 创建路径线
+                    const pathLine = L.polyline(pathCoordinates, {
+                        color: getMigrationColor(migration.迁徙原因 || '人口迁徙'),
+                        weight: 3,
+                        opacity: 0.8,
+                        dashArray: '8, 4'
+                    });
+                    
+                    // 添加弹出信息
+                    pathLine.bindPopup(`
+                        <div class="popup-content">
+                            <h3 class="text-lg font-bold">${migration.迁徙名称}</h3>
+                            <p class="text-sm text-gray-600">时间: ${formatYear(migration.起始时间)} - ${formatYear(migration.结束时间)}</p>
+                            <p class="mt-2">人口规模: ${migration.人口规模 || '未知'}</p>
+                            <p>原因: ${migration.迁徙原因}</p>
+                            <p class="mt-2"><strong>影响:</strong> ${migration.影响描述}</p>
+                        </div>
+                    `);
+                    
+                    // 添加方向箭头
+                    addDirectionArrows(pathLine, migration.迁徙名称);
+                    
+                    // 添加到地图
+                    markersLayer.addLayer(pathLine);
+                }
+            }
+        }
+    });
+}
+
+// 创建自定义图标
+function createCustomIcon(category, name) {
+    // 根据类别选择合适的图标和颜色
+    let iconClass = 'info-sign';
+    let borderColor = '#4a89dc';
+    
+    switch(category) {
+        case '技术':
+            iconClass = 'cog';
+            borderColor = '#2196F3';
+            break;
+        case '农业':
+            iconClass = 'tree';
+            borderColor = '#4CAF50';
+            break;
+        case '文明':
+            iconClass = 'tower';
+            borderColor = '#9C27B0';
+            break;
+        case '迁徙':
+            iconClass = 'road';
+            borderColor = '#795548';
+            break;
+    }
+    
+    return L.divIcon({
+        className: `event-icon ${category}`,
+        html: `<i class="fas fa-${iconClass}" title="${name}"></i>`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+    });
+}
+
+// 判断时间点是否与当前年份相关
+function isTimeRelevant(time, currentYear) {
+    // 将可能的字符串转换为数字
+    const timeValue = typeof time === 'string' ? parseInt(time.replace(/[^-\d]/g, '')) : time;
+    const year = parseInt(currentYear);
+    
+    if (isNaN(timeValue)) return false;
+    
+    // 判断时间点是否在当前年份的500年范围内
+    return Math.abs(timeValue - year) <= 500;
+}
+
+// 判断时间范围是否与当前年份相关
+function isTimeRangeRelevant(startTime, endTime, currentYear) {
+    // 将可能的字符串转换为数字
+    const startValue = typeof startTime === 'string' ? parseInt(startTime.replace(/[^-\d]/g, '')) : startTime;
+    const endValue = typeof endTime === 'string' ? parseInt(endTime.replace(/[^-\d]/g, '')) : endTime;
+    const year = parseInt(currentYear);
+    
+    if (isNaN(startValue) || isNaN(endValue)) return false;
+    
+    // 判断当前年份是否在时间范围内或接近时间范围的200年内
+    return (year >= startValue - 200 && year <= endValue + 200);
 }
 
 // 页面加载完成后初始化应用

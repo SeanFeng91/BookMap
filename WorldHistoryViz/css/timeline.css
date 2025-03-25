@@ -114,4 +114,197 @@
     margin-bottom: 15px;
     font-size: 18px;
     color: #333;
+}
+
+/* 时间轴样式 */
+
+/* 时间轴容器 */
+#timeline-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+}
+
+/* 时间轴内部元素 */
+#timeline-inner {
+    position: absolute;
+    height: 100%;
+    width: 600%; /* 足够长以显示从前10000年到公元2000年的所有刻度 */
+    background-image: linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px);
+    background-size: 100% 25%;
+    background-position: 0 0;
+}
+
+/* 时间轴刻度 */
+.timeline-marker {
+    position: absolute;
+    bottom: 0;
+    height: 15px;
+    width: 1px;
+    background-color: #333;
+}
+
+/* 次要刻度 */
+.timeline-minor-marker {
+    position: absolute;
+    bottom: 0;
+    height: 8px;
+    width: 1px;
+    background-color: #999;
+}
+
+/* 时间轴年份标签 */
+.timeline-label {
+    position: absolute;
+    bottom: 18px;
+    left: 0;
+    transform: translateX(-50%);
+    font-size: 11px;
+    color: #333;
+    white-space: nowrap;
+    font-weight: 500;
+    background-color: rgba(255, 255, 255, 0.7);
+    padding: 1px 4px;
+    border-radius: 2px;
+    z-index: 5;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+/* 当前年份指示器 */
+#current-year-indicator {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 2px;
+    background-color: #e53e3e;
+    z-index: 10;
+    box-shadow: 0 0 5px rgba(229, 62, 62, 0.5);
+}
+
+/* 当前年份突出显示圆点 */
+#current-year-indicator:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #e53e3e;
+}
+
+/* 时间轴滑块样式 */
+#year-slider {
+    -webkit-appearance: none;
+    height: 6px;
+    background: #e0e0e0;
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+}
+
+/* 滑块样式 - Chrome/Safari */
+#year-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    background: #3b82f6;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    transition: background 0.15s ease-in-out;
+}
+
+#year-slider::-webkit-slider-thumb:hover {
+    background: #2563eb;
+}
+
+/* 滑块样式 - Firefox */
+#year-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: #3b82f6;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    transition: background 0.15s ease-in-out;
+}
+
+#year-slider::-moz-range-thumb:hover {
+    background: #2563eb;
+}
+
+/* 年份样式 */
+#year-display {
+    font-weight: 600;
+    color: #1e3a8a;
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 4px 10px;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* 输入框样式 */
+#year-input {
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 0.875rem;
+    transition: border-color 0.15s;
+}
+
+#year-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+
+/* 跳转按钮样式 */
+#go-to-year {
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+#go-to-year:hover {
+    background-color: #2563eb;
+}
+
+/* 年份按钮 */
+.year-btn {
+    transition: all 0.2s;
+}
+
+.year-btn:hover {
+    background-color: #e2e8f0;
+    transform: translateY(-1px);
+}
+
+/* 年份按钮激活状态 */
+.year-btn.active {
+    background-color: #3b82f6;
+    color: white;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .timeline-label {
+        font-size: 10px;
+    }
+    
+    #timeline-container {
+        height: 60px;
+    }
 } 

@@ -4,11 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>全球历史地图 - 地理视角下的世界历史变迁</title>
+    <!-- Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <!-- TailwindCSS 3.0+ -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <!-- 自定义样式 -->
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/timeline.css">
     <link rel="stylesheet" href="css/events.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
         /* 事件图标样式 */
         .event-icon {
@@ -31,10 +36,6 @@
         .event-icon.征服 { border-color: #F44336; }
         .event-icon.疾病 { border-color: #FF9800; }
         .event-icon.迁徙 { border-color: #795548; }
-        .event-icon.探索 { border-color: #607D8B; }
-        .event-icon.贸易 { border-color: #FFEB3B; color: #5D4037; }
-        .event-icon.气候 { border-color: #00BCD4; }
-        .event-icon.政治 { border-color: #3F51B5; }
         
         /* 迁徙箭头样式 */
         .migration-arrow {
@@ -44,51 +45,61 @@
         }
     </style>
 </head>
-<body>
-    <div class="app-container">
-        <header>
-            <h1>全球历史地图 <span class="subtitle">枪炮、病毒与钢铁的视角</span></h1>
+<body class="bg-gray-100">
+    <div class="flex flex-col h-screen max-h-screen overflow-hidden">
+        <!-- 顶部标题和导航 -->
+        <header class="bg-blue-100 text-blue-800 shadow-md py-2">
+            <div class="container mx-auto px-4 flex justify-between items-center">
+                <h1 class="text-xl font-bold">全球历史地图 <span class="text-sm font-normal text-blue-600">枪炮、病毒与钢铁的视角</span></h1>
+                <div class="flex items-center space-x-2">
+                    <button id="help-button" class="px-3 py-1 bg-blue-200 rounded text-sm hover:bg-blue-300 transition">
+                        <i class="fas fa-question-circle mr-1"></i> 帮助
+                    </button>
+                </div>
+            </div>
         </header>
         
-        <main>
-            <div class="sidebar">
-                <div class="control-panel">
-                    <h2>时间线控制</h2>
-                    <div class="time-control">
-                        <div class="time-buttons">
-                            <div class="preset-years">
-                                <button class="year-btn" data-year="-10000">公元前10000年</button>
-                                <button class="year-btn" data-year="-8000">公元前8000年</button>
-                                <button class="year-btn" data-year="-5000">公元前5000年</button>
-                                <button class="year-btn" data-year="-3000">公元前3000年</button>
-                                <button class="year-btn" data-year="-1000">公元前1000年</button>
-                                <button class="year-btn" data-year="0">公元元年</button>
-                                <button class="year-btn" data-year="1000">公元1000年</button>
-                                <button class="year-btn" data-year="1900">公元1900年</button>
-                                <button class="year-btn" data-year="2000">公元2000年</button>
-                            </div>
-                            <div class="year-navigation">
-                                <button id="year-decrement">-100年</button>
-                                <span id="year-display">公元0年</span>
-                                <button id="year-increment">+100年</button>
-                            </div>
-                        </div>
-                        <div id="timeline" class="timeline">
-                            <!-- 时间线标记将由JavaScript动态生成 -->
-                        </div>
-                        <input type="range" id="year-slider" min="-10000" max="2000" value="0" step="100" class="timeline-slider">
-                        
-                        <div class="year-input-container" style="margin-top: 10px; display: flex; gap: 10px;">
-                            <input type="number" id="year-input" value="0" min="-10000" max="2000" step="100" style="flex: 1; padding: 5px;">
-                            <button id="go-to-year" class="control-btn" style="white-space: nowrap;">跳转</button>
+        <!-- 事件类别切换区域 -->
+        <div class="bg-white shadow-sm py-2">
+            <div class="container mx-auto flex justify-center items-center space-x-4">
+                <div class="text-sm font-medium text-gray-500">显示类别:</div>
+                <div class="flex flex-wrap justify-center gap-2">
+                    <button class="category-btn active flex items-center px-3 py-1 rounded-full bg-blue-100 hover:bg-blue-200 text-sm transition" data-category="all">
+                        <i class="fas fa-globe mr-1 text-blue-600"></i> 全部
+                    </button>
+                    <button class="category-btn flex items-center px-3 py-1 rounded-full bg-gray-100 hover:bg-gray-200 text-sm transition" data-category="农业">
+                        <i class="fas fa-seedling mr-1 text-green-600"></i> 农业
+                    </button>
+                    <button class="category-btn flex items-center px-3 py-1 rounded-full bg-gray-100 hover:bg-gray-200 text-sm transition" data-category="技术">
+                        <i class="fas fa-cogs mr-1 text-blue-600"></i> 技术
+                    </button>
+                    <button class="category-btn flex items-center px-3 py-1 rounded-full bg-gray-100 hover:bg-gray-200 text-sm transition" data-category="文明">
+                        <i class="fas fa-landmark mr-1 text-purple-600"></i> 文明
+                    </button>
+                    <button class="category-btn flex items-center px-3 py-1 rounded-full bg-gray-100 hover:bg-gray-200 text-sm transition" data-category="征服">
+                        <i class="fas fa-chess-knight mr-1 text-red-600"></i> 征服
+                    </button>
+                    <button class="category-btn flex items-center px-3 py-1 rounded-full bg-gray-100 hover:bg-gray-200 text-sm transition" data-category="疾病">
+                        <i class="fas fa-virus mr-1 text-yellow-600"></i> 疾病
+                    </button>
+                    <button class="category-btn flex items-center px-3 py-1 rounded-full bg-gray-100 hover:bg-gray-200 text-sm transition" data-category="迁徙">
+                        <i class="fas fa-route mr-1 text-brown-600"></i> 迁徙
+                    </button>
                         </div>
                     </div>
                 </div>
                 
-                <div class="events-panel">
-                    <h2>历史事件 <span id="events-year-range"></span></h2>
-                    <div class="filter-controls">
-                        <select id="category-filter">
+        <!-- 主内容区 -->
+        <main class="flex-grow flex overflow-hidden">
+            <!-- 侧边栏 -->
+            <aside class="w-80 bg-white shadow-md flex-shrink-0 overflow-y-auto">
+                <div class="p-4">
+                    <h2 class="text-lg font-semibold mb-2 flex items-center">
+                        <i class="fas fa-list-ul mr-2 text-indigo-600"></i>
+                        历史事件 <span id="events-year-range" class="text-sm font-normal ml-2 text-gray-600"></span>
+                    </h2>
+                    <div class="mb-3 flex gap-2">
+                        <select id="category-filter" class="text-sm rounded border-gray-300 flex-grow">
                             <option value="all">全部类别</option>
                             <option value="农业">农业</option>
                             <option value="技术">技术</option>
@@ -96,12 +107,8 @@
                             <option value="征服">征服</option>
                             <option value="疾病">疾病</option>
                             <option value="迁徙">迁徙</option>
-                            <option value="探索">探索</option>
-                            <option value="贸易">贸易</option>
-                            <option value="气候">气候</option>
-                            <option value="政治">政治</option>
                         </select>
-                        <select id="importance-filter">
+                        <select id="importance-filter" class="text-sm rounded border-gray-300">
                             <option value="all">全部重要性</option>
                             <option value="5">★★★★★</option>
                             <option value="4">★★★★以上</option>
@@ -109,48 +116,87 @@
                             <option value="2">★★以上</option>
                         </select>
                     </div>
-                    <div id="events-list" class="events-container">
+                    <div id="events-list" class="events-container overflow-y-auto max-h-[calc(100vh-220px)]">
                         <!-- 事件列表将由JavaScript动态生成 -->
                     </div>
                 </div>
-            </div>
+            </aside>
             
-            <div class="map-container">
-                <div class="map-controls">
-                    <div class="toggle-controls">
-                        <button id="toggle-events" class="control-btn">显示/隐藏事件</button>
-                        <button id="toggle-migrations" class="control-btn">显示/隐藏迁徙路线</button>
+            <!-- 地图容器 -->
+            <div class="flex-grow flex flex-col">
+                <div class="flex-grow relative">
+                    <div id="map" class="absolute inset-0"></div>
+                    <div id="map-error" class="hidden absolute inset-0 flex items-center justify-center bg-white bg-opacity-90">
+                        <div class="text-red-600 text-center">
+                            <i class="fas fa-exclamation-triangle text-3xl mb-2"></i>
+                            <p>地图加载出错，请刷新页面重试</p>
+                        </div>
+                    </div>
+                    <div class="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+                        <button id="toggle-events" class="bg-white rounded shadow px-3 py-2 text-sm hover:bg-gray-50 border border-blue-200">
+                            <i class="fas fa-eye mr-1 text-blue-600"></i> 显示/隐藏事件
+                        </button>
+                        <button id="toggle-migrations" class="bg-white rounded shadow px-3 py-2 text-sm hover:bg-gray-50 border border-blue-200">
+                            <i class="fas fa-route mr-1 text-blue-600"></i> 显示/隐藏迁徙路线
+                        </button>
+                    </div>
+                    <!-- 事件详情面板 -->
+                    <div id="event-details" class="hidden absolute right-4 bottom-4 bg-white rounded-lg shadow-lg w-80 max-h-96 overflow-y-auto z-[1000]">
+                        <div class="flex justify-between items-center p-3 border-b">
+                            <h3 class="font-semibold">事件详情</h3>
+                            <button id="close-details" class="text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div id="event-details-content" class="p-4"></div>
                     </div>
                 </div>
-                <div id="map" class="map"></div>
-                <div id="map-error" style="display: none; padding: 20px; text-align: center; color: #e74c3c;">
-                    地图加载出错，请刷新页面重试
-                </div>
-                <div id="event-details" class="event-details-panel hidden">
-                    <button id="close-details" class="close-btn">×</button>
-                    <div id="event-details-content"></div>
+                
+                <!-- 简化的时间轴控制区域 -->
+                <div class="bg-white bg-opacity-80 p-2 flex items-center justify-between">
+                    <h3 id="year-display" class="text-base font-semibold">公元前1000年</h3>
+                    
+                    <!-- 时间轴刻度 -->
+                    <div class="flex-grow mx-4 relative h-8">
+                        <input type="range" id="year-slider" min="-10000" max="2000" value="0" step="10" 
+                               class="w-full accent-blue-600">
+                    </div>
+                    
+                    <!-- 年份输入和跳转 -->
+                    <div class="flex items-center gap-2">
+                        <input type="number" id="year-input" placeholder="输入年份" class="w-24 text-sm border border-gray-300 rounded px-2 py-1">
+                        <button id="go-to-year" class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm">跳转</button>
+                    </div>
                 </div>
             </div>
         </main>
         
-        <footer>
+        <!-- 底部信息 -->
+        <footer class="bg-blue-100 text-blue-800 py-2 text-center text-sm">
             <p>数据来源：基于贾雷德·戴蒙德《枪炮、病毒与钢铁》的历史事件和地理数据</p>
         </footer>
     </div>
     
-    <div id="loading-indicator" class="loading-indicator hidden">
-        <div class="spinner"></div>
+    <!-- 加载指示器 -->
+    <div id="loading-indicator" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-lg flex flex-col items-center">
+            <div class="spinner mb-3"></div>
         <p>加载中...</p>
-    </div>
-    
-    <div id="error-container" class="error-container hidden">
-        <div class="error-box">
-            <h3>出错了</h3>
-            <p id="error-message"></p>
-            <button id="dismiss-error" class="btn">确定</button>
         </div>
     </div>
     
+    <!-- 错误提示 -->
+    <div id="error-container" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h3 class="text-xl font-bold mb-3 text-red-600">出错了</h3>
+            <p id="error-message" class="mb-4"></p>
+            <div class="flex justify-end">
+                <button id="dismiss-error" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition">确定</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 脚本 -->
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script type="module" src="js/events-data.js"></script>
     <script type="module" src="js/migrations-data.js"></script>

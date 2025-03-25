@@ -6,7 +6,7 @@
  * - title: 事件标题
  * - description: 事件详细描述
  * - location: [经度, 纬度]
- * - category: 事件类别(技术、农业、文明、迁徙、疾病等)
+ * - category: 事件类别(农业、技术、文明、征服、疾病、迁徙)
  * - importance: 重要性(1-5, 5为最重要)
  * - relatedEvents: 相关事件ID数组
  */
@@ -17,7 +17,7 @@ export const historyEvents = [
         title: "末次冰期结束",
         description: "约公元前11000年，末次冰期结束，全球气候变暖，为农业发展创造了条件。这一气候变化使得肥沃新月地带和其他地区开始出现适宜种植的环境。",
         location: [35.0, 30.0], // 中东地区
-        category: "气候",
+        category: "农业",
         importance: 5,
         relatedEvents: [2, 3]
     },
@@ -187,7 +187,7 @@ export const historyEvents = [
         title: "马其顿扩张与希腊化时代",
         description: "亚历山大大帝征服波斯帝国，将希腊文化传播到中亚和印度。这次大规模的文化和技术交流加速了欧亚大陆东西方的互动。",
         location: [25.0, 35.0], // 希腊
-        category: "文明",
+        category: "征服",
         importance: 4,
         relatedEvents: [17, 20]
     },
@@ -207,7 +207,7 @@ export const historyEvents = [
         title: "欧亚大陆贸易路线成熟",
         description: "丝绸之路全面开通，连接中国、印度、中亚和罗马帝国。这些贸易路线不仅交换商品，也传播技术、疾病和思想，加速了欧亚大陆的整合过程。",
         location: [75.0, 40.0], // 中亚
-        category: "贸易",
+        category: "迁徙",
         importance: 5,
         relatedEvents: [18, 19, 21]
     },
@@ -237,7 +237,7 @@ export const historyEvents = [
         title: "哥伦布抵达美洲",
         description: "欧洲与美洲的接触开始，生物交换和文化冲突随之而来。这次接触导致了史无前例的人口灾难，美洲原住民因欧亚疾病而大量死亡，展示了生物因素在人类历史中的决定性作用。",
         location: [-70.0, 20.0], // 加勒比地区
-        category: "探索",
+        category: "迁徙",
         importance: 5,
         relatedEvents: [24, 25]
     },
@@ -277,7 +277,7 @@ export const historyEvents = [
         title: "全球殖民体系确立",
         description: "欧洲列强控制全球大部分地区，建立起全球性殖民体系。这是《枪炮、病毒与钢铁》所探讨问题的终点——为什么是欧洲人征服了美洲和其他地区，而不是相反。",
         location: [0.0, 0.0], // 象征性位置
-        category: "政治",
+        category: "征服",
         importance: 5,
         relatedEvents: [26]
     }
