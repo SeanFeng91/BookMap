@@ -681,10 +681,13 @@ const MapUtils = {
         }
         
         // 将数据打印到控制台帮助调试
-        console.log(`检查事件 "${event.title}" (${event.year}) 是否与年份 ${currentYear} 相关`);
+        const eventTimeStr = event.startYear !== undefined ? 
+            `${event.startYear}${event.endYear ? `-${event.endYear}` : ''}` : 
+            `${event.year}${event.endYear ? `-${event.endYear}` : ''}`;
+        console.log(`检查事件 "${event.title}" (${eventTimeStr}) 是否与年份 ${currentYear} 相关`);
         
         // 兼容性处理：有些事件可能使用startYear/endYear，有些可能使用year/endYear
-        const eventStartYear = event.year;
+        const eventStartYear = event.startYear !== undefined ? event.startYear : event.year;
         const eventEndYear = event.endYear;
         
         // 确保有有效的年份

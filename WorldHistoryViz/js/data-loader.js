@@ -214,18 +214,18 @@ export function getEventsForYear(events, year, range = 100) {
     }
     
     return events.filter(event => {
+        // 先标准化时间字段
+        const startYear = event.startYear !== undefined ? event.startYear : event.year;
+        const endYear = event.endYear;
+        
         // 如果事件有开始和结束年份，检查当前年份是否在该范围内
-        if (event.startYear !== undefined && event.endYear !== undefined) {
-            return year >= event.startYear && year <= event.endYear;
-        } else if (event.year !== undefined && event.endYear !== undefined) {
-            return year >= event.year && year <= event.endYear;
+        if (startYear !== undefined && endYear !== undefined) {
+            return year >= startYear && year <= endYear;
         }
         
         // 如果事件只有一个年份，检查与当前年份的差距是否在范围内
-        if (event.startYear !== undefined) {
-            return Math.abs(event.startYear - year) <= range;
-        } else if (event.year !== undefined) {
-            return Math.abs(event.year - year) <= range;
+        if (startYear !== undefined) {
+            return Math.abs(startYear - year) <= range;
         }
         
         return false;
@@ -322,8 +322,9 @@ export function sortEventsByYear(events, ascending = true) {
     }
     
     return [...events].sort((a, b) => {
-        const yearA = a.year || 0;
-        const yearB = b.year || 0;
+        // 获取事件的开始年份，优先使用startYear，其次是year
+        const yearA = a.startYear !== undefined ? a.startYear : (a.year || 0);
+        const yearB = b.startYear !== undefined ? b.startYear : (b.year || 0);
         return ascending ? yearA - yearB : yearB - yearA;
     });
 }

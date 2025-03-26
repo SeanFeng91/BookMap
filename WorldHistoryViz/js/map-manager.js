@@ -681,35 +681,54 @@ export class MapManager {
         // 保存原始事件数据，供highlightEvent等方法使用
         this.events = events;
         
-        // 获取与当前年份相关的事件
-        const relevantEvents = this.getRelevantEvents(events, this.currentYear);
-        console.log(`找到 ${relevantEvents.length} 个相关事件`);
+        // 获取所有事件并添加相关性属性
+        const eventsWithRelevance = this.getRelevantEvents(events, this.currentYear);
+        console.log(`处理 ${eventsWithRelevance.length} 个事件标记`);
         
         // 创建GeoJSON特征集合
-        const features = relevantEvents.map(event => {
-            // 检查事件是否有坐标
-            if (!event.coordinates || !Array.isArray(event.coordinates) || event.coordinates.length < 2) {
-                console.warn(`事件 "${event.name}" 缺少有效坐标`);
+        const features = eventsWithRelevance.map(event => {
+            // 获取事件坐标
+            let coordinates = event.coordinates;
+            
+            // 如果没有coordinates字段但有location字段（新数据格式）
+            if ((!coordinates || !Array.isArray(coordinates)) && event.location) {
+                if (typeof event.location === 'object' && 'lat' in event.location && 'lng' in event.location) {
+                    // 直接使用lat和lng属性创建坐标数组
+                    coordinates = [event.location.lat, event.location.lng];
+                }
+            }
+            
+            // 如果仍然没有有效坐标，跳过此事件
+            if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 2) {
+                console.warn(`事件 "${event.title || event.name}" 缺少有效坐标`);
                 return null;
             }
+            
+            // 处理时间字段：确保year属性存在，用于向后兼容
+            const year = event.startYear !== undefined ? event.startYear : event.year;
+            
+            // 提取事件属性
+            const properties = {
+                id: event.id,
+                name: event.title || event.name, // 适配两种数据格式
+                title: event.title || event.name,
+                category: event.category,
+                description: event.description,
+                year: year, // 使用startYear或year
+                startYear: event.startYear,
+                endYear: event.endYear,
+                importance: event.importance || 1,
+                impact: event.impact || event.historicalSignificance,
+                relevance: event.relevance || 1.0
+            };
             
             // 创建GeoJSON特征
             return {
                 type: 'Feature',
-                properties: {
-                    id: event.id,
-                    name: event.name,
-                    category: event.category,
-                    description: event.description,
-                    year: event.year,
-                    endYear: event.endYear,
-                    importance: event.importance || 1,
-                    historicalSignificance: event.historicalSignificance,
-                    originalData: event.originalData
-                },
+                properties: properties,
                 geometry: {
                     type: 'Point',
-                    coordinates: [event.coordinates[1], event.coordinates[0]] // 注意：GeoJSON使用[经度，纬度]
+                    coordinates: [coordinates[1], coordinates[0]] // 注意：GeoJSON使用[经度，纬度]
                 }
             };
         }).filter(Boolean);
@@ -721,39 +740,49 @@ export class MapManager {
                 features: features
             }, {
             pointToLayer: (feature, latlng) => {
-                    // 根据重要性调整标记大小
-                    const size = 24 + (feature.properties.importance || 1) * 4;
-                    
-                    // 创建自定义HTML标记
-                    const icon = L.divIcon({
-                        className: 'custom-marker',
-                        html: this.createEventMarkerHTML(feature),
-                        iconSize: [size, size],
-                        iconAnchor: [size/2, size/2],
-                        popupAnchor: [0, -size/2 - 5]
-                    });
-                    
-                    // 创建标记
-                    const marker = L.marker(latlng, { 
-                        icon: icon,
-                        riseOnHover: true,
-                        riseOffset: 300,
-                        zIndexOffset: feature.properties.importance * 100
-                    });
-                    
-                    // 添加气泡
-                    marker.bindPopup(this.createEventPopupContent(feature));
-                    
-                    // 添加到事件标记组
-                    this.eventMarkers.push(marker);
+                // 根据重要性和相关性调整标记大小和不透明度
+                const importance = feature.properties.importance || 1;
+                const relevance = feature.properties.relevance || 1.0;
                 
+                // 忽略相关性太低的事件
+                if (relevance < 0.1) return null; 
+                
+                // 标记大小基于重要性
+                const size = 22 + importance * 3;
+                
+                // 创建自定义HTML标记
+                const icon = L.divIcon({
+                    className: 'custom-marker',
+                    html: this.createEventMarkerHTML(feature, relevance),
+                    iconSize: [size, size],
+                    iconAnchor: [size/2, size/2],
+                    popupAnchor: [0, -size/2 - 5]
+                });
+                
+                // 创建标记
+                const marker = L.marker(latlng, { 
+                    icon: icon,
+                    riseOnHover: true,
+                    riseOffset: 300,
+                    zIndexOffset: Math.round(importance * 100 * relevance) // 相关性高的显示在前面
+                });
+                
+                // 添加气泡
+                marker.bindPopup(this.createEventPopupContent(feature));
+                
+                // 添加到事件标记组
+                this.eventMarkers.push(marker);
+            
                 return marker;
             }
             }).addTo(this.map);
             
-            // 在地图上为事件添加额外的标题标签
-            features.forEach(feature => {
-                if (feature.properties.importance >= 4) { // 只为重要事件添加标签
+            // 在地图上为重要事件添加额外的标题标签
+            features
+                .filter(feature => 
+                    feature.properties.importance >= 4 && 
+                    feature.properties.relevance >= 0.7)
+                .forEach(feature => {
                     const latlng = L.latLng(
                         feature.geometry.coordinates[1], 
                         feature.geometry.coordinates[0]
@@ -773,38 +802,68 @@ export class MapManager {
                     }).addTo(this.map);
                     
                     this.eventMarkers.push(label);
-                }
-            });
+                });
         }
     }
     
     /**
      * 创建事件标记HTML
      * @param {Object} feature - GeoJSON特征
+     * @param {number} relevance - 事件与当前时间的相关性 (0-1)
      * @returns {string} HTML字符串
      */
-    createEventMarkerHTML(feature) {
+    createEventMarkerHTML(feature, relevance = 1.0) {
         const properties = feature.properties;
         const category = properties.category || '其他';
         const importance = properties.importance || 1;
         const eventId = properties.id || '';
         
-        // 提取编号（去掉E前缀）
-        const eventNumber = eventId.replace('E', '');
-        
-        // 根据重要性选择尺寸和阴影
-        const iconSize = 28 + importance * 3;
+        // 根据重要性和相关性调整标记大小和透明度
+        const iconSize = 32 + importance * 3;
         const shadowBlur = 8 + importance * 2;
-        const fontSize = 14 + importance;
+        
+        // 确保相关性在有效范围内
+        const opacity = Math.max(0.2, Math.min(1.0, relevance));
+        
+        // 根据类别选择图标
+        const icons = {
+            '农业': '<i class="fas fa-seedling"></i>',
+            '技术': '<i class="fas fa-microchip"></i>',
+            '文明': '<i class="fas fa-monument"></i>',
+            '战争': '<i class="fas fa-gavel"></i>',
+            '疾病': '<i class="fas fa-virus"></i>',
+            '迁徙': '<i class="fas fa-people-arrows"></i>',
+            '物种': '<i class="fas fa-paw"></i>',
+            '其他': '<i class="fas fa-info"></i>'
+        };
+        
+        const icon = icons[category] || icons['其他'];
+        
+        // 根据类别选择颜色
+        const colors = {
+            '农业': '#10b981',
+            '技术': '#3b82f6',
+            '文明': '#8b5cf6',
+            '战争': '#ef4444',
+            '疾病': '#f59e0b',
+            '迁徙': '#7c3aed',
+            '物种': '#14b8a6',
+            '其他': '#6b7280'
+        };
+        
+        const color = colors[category] || colors['其他'];
         
         // 构建HTML
         return `
-            <div class="map-marker event-marker" data-event-id="${properties.id}">
-                <div class="marker-icon ${category}" style="width: ${iconSize}px; height: ${iconSize}px; box-shadow: 0 0 ${shadowBlur}px rgba(0, 0, 0, 0.3);">
-                    <span style="font-size: ${fontSize}px; font-weight: 600;">${eventNumber}</span>
+            <div class="map-marker event-marker" data-event-id="${properties.id}" data-category="${category}" style="opacity: ${opacity};">
+                <div class="marker-icon" style="width: ${iconSize}px; height: ${iconSize}px; 
+                    background-color: ${color}; color: white; display: flex; 
+                    align-items: center; justify-content: center; border-radius: 50%; 
+                    box-shadow: 0 0 ${shadowBlur}px rgba(0, 0, 0, 0.3);">
+                    ${icon}
                 </div>
-                <div class="marker-label">
-                    <span>${properties.name}</span>
+                <div class="marker-label" style="opacity: ${opacity >= 0.7 ? 1 : 0};">
+                    <span>${properties.name || properties.title}</span>
                 </div>
             </div>
         `;
@@ -819,12 +878,15 @@ export class MapManager {
         const properties = feature.properties;
         const name = properties.name;
         
-        // 格式化年份
+        // 格式化年份 - 优先使用startYear，其次是year
         let yearDisplay = '';
-        if (properties.year !== undefined && properties.endYear !== undefined && properties.year !== properties.endYear) {
-            yearDisplay = `(${this.formatYear(properties.year)}-${this.formatYear(properties.endYear)})`;
-        } else if (properties.year !== undefined) {
-            yearDisplay = `(${this.formatYear(properties.year)})`;
+        const startYear = properties.startYear !== undefined ? properties.startYear : properties.year;
+        const endYear = properties.endYear;
+        
+        if (startYear !== undefined && endYear !== undefined && startYear !== endYear) {
+            yearDisplay = `(${this.formatYear(startYear)}-${this.formatYear(endYear)})`;
+        } else if (startYear !== undefined) {
+            yearDisplay = `(${this.formatYear(startYear)})`;
         }
         
         return `
@@ -853,12 +915,15 @@ export class MapManager {
     createEventPopupContent(feature) {
         const properties = feature.properties;
         
-        // 格式化年份
+        // 格式化年份 - 优先使用startYear，其次是year
         let yearDisplay = '';
-        if (properties.year !== undefined && properties.endYear !== undefined && properties.year !== properties.endYear) {
-            yearDisplay = `${this.formatYear(properties.year)} - ${this.formatYear(properties.endYear)}`;
-        } else if (properties.year !== undefined) {
-            yearDisplay = this.formatYear(properties.year);
+        const startYear = properties.startYear !== undefined ? properties.startYear : properties.year;
+        const endYear = properties.endYear;
+        
+        if (startYear !== undefined && endYear !== undefined && startYear !== endYear) {
+            yearDisplay = `${this.formatYear(startYear)} - ${this.formatYear(endYear)}`;
+        } else if (startYear !== undefined) {
+            yearDisplay = this.formatYear(startYear);
         } else {
             yearDisplay = '未知时间';
         }
@@ -1495,46 +1560,20 @@ export class MapManager {
                 if (marker.getElement && marker.getElement()) {
                     const element = marker.getElement();
                     if (element.querySelector(`.map-marker[data-event-id="${eventId}"]`)) {
-                        // 获取marker的经纬度
+                        // 将地图中心移动到标记位置
                         const latlng = marker.getLatLng();
-                        
-                        // 平移地图到这个位置（使用飞行动画）
                         this.map.flyTo(latlng, Math.max(this.map.getZoom(), 5), {
                             duration: 1.5,
                             easeLinearity: 0.25
                         });
                         
-                        // 打开弹窗
+                        // 打开标记弹窗
                         marker.openPopup();
                         
-                        // 创建一个临时的脉冲效果
-                        const pulseIcon = L.divIcon({
-                            className: 'pulse-marker',
-                            html: '<div class="pulse-circle"></div>',
-                            iconSize: [40, 40],
-                            iconAnchor: [20, 20]
-                        });
+                        // 添加脉冲效果
+                        this.addPulseEffect(latlng);
                         
-                        const pulseMarker = L.marker(latlng, { 
-                            icon: pulseIcon,
-                            zIndexOffset: 1000
-                        }).addTo(this.map);
-                        
-                        // 将脉冲标记添加到高亮列表
-                        this.highlightedElements.push(pulseMarker);
-                        
-                        // 3秒后移除脉冲效果
-                        setTimeout(() => {
-                            if (this.map.hasLayer(pulseMarker)) {
-                                this.map.removeLayer(pulseMarker);
-                                
-                                // 从高亮列表中移除
-                                const index = this.highlightedElements.indexOf(pulseMarker);
-                                if (index !== -1) {
-                                    this.highlightedElements.splice(index, 1);
-                                }
-                            }
-                        }, 3000);
+                        return;
                     }
                 }
             });
@@ -1544,45 +1583,65 @@ export class MapManager {
             // 尝试从数据中找到事件并动态创建标记
             if (this.events && Array.isArray(this.events)) {
                 const event = this.events.find(e => e.id === eventId);
-                if (event && event.location && Array.isArray(event.location) && event.location.length >= 2) {
-                    console.log(`找到事件数据，正在创建临时标记: ${event.title}`);
+                if (event) {
+                    let coordinates;
                     
-                    // 创建临时事件标记
-                    const tempFeature = {
-                        type: "Feature",
-                        properties: {
-                            id: event.id,
-                            title: event.title,
-                            year: event.year,
-                            endYear: event.endYear,
-                            description: event.description,
-                            category: event.category,
-                            importance: event.importance
-                        },
-                        geometry: {
-                            type: "Point",
-                            coordinates: [event.location[0], event.location[1]]
+                    // 处理不同格式的坐标
+                    if (event.location) {
+                        if (Array.isArray(event.location) && event.location.length >= 2) {
+                            coordinates = [event.location[1], event.location[0]]; // [lng, lat] for GeoJSON
+                        } else if (typeof event.location === 'object' && 'lat' in event.location && 'lng' in event.location) {
+                            coordinates = [event.location.lng, event.location.lat]; // [lng, lat] for GeoJSON
                         }
-                    };
+                    } else if (event.coordinates && Array.isArray(event.coordinates) && event.coordinates.length >= 2) {
+                        coordinates = [event.coordinates[1], event.coordinates[0]]; // [lng, lat] for GeoJSON
+                    }
                     
-                    // 添加临时标记
-                    const marker = this.createEventMarker(tempFeature);
-                    if (marker) {
-                        // 保存到事件标记列表
-                        this.eventMarkers.push(marker);
+                    if (coordinates) {
+                        console.log(`找到事件数据，正在创建临时标记: ${event.title}`);
                         
-                        // 高亮显示
-                        const latlng = marker.getLatLng();
-                        this.map.flyTo(latlng, Math.max(this.map.getZoom(), 5), {
-                            duration: 1.5,
-                            easeLinearity: 0.25
-                        });
+                        // 创建临时事件标记
+                        const tempFeature = {
+                            type: "Feature",
+                            properties: {
+                                id: event.id,
+                                title: event.title || event.name,
+                                year: event.startYear || event.year,
+                                endYear: event.endYear,
+                                description: event.description,
+                                category: event.category,
+                                importance: event.importance || 3
+                            },
+                            geometry: {
+                                type: "Point",
+                                coordinates: coordinates
+                            }
+                        };
                         
-                        // 打开弹窗
-            marker.openPopup();
-        }
+                        // 添加临时标记
+                        const marker = this.createEventMarker(tempFeature);
+                        if (marker) {
+                            // 保存到事件标记列表
+                            this.eventMarkers.push(marker);
+                            
+                            // 高亮显示
+                            const latlng = marker.getLatLng();
+                            this.map.flyTo(latlng, Math.max(this.map.getZoom(), 5), {
+                                duration: 1.5,
+                                easeLinearity: 0.25
+                            });
+                            
+                            // 打开弹窗
+                            marker.openPopup();
+                            
+                            // 添加脉冲效果
+                            this.addPulseEffect(latlng);
+                        }
+                    } else {
+                        console.error(`找不到事件数据或位置信息无效: ${eventId}`);
+                    }
                 } else {
-                    console.error(`找不到事件数据或位置信息无效: ${eventId}`);
+                    console.error(`找不到ID为 ${eventId} 的事件数据`);
                 }
             }
         }
@@ -1736,76 +1795,56 @@ export class MapManager {
     
     /**
      * 获取与当前年份相关的事件
-     * @param {Array} events - 事件数组
-     * @param {number} year - 年份
-     * @returns {Array} 相关事件数组
+     * @param {Array} events - 所有事件
+     * @param {number} year - 当前年份
+     * @returns {Array} 相关事件数组，每个事件增加了relevance属性
      */
     getRelevantEvents(events, year) {
-        if (!events || !Array.isArray(events)) {
-            console.warn('传入的事件数据无效');
-            return [];
-        }
+        if (!events || !Array.isArray(events)) return [];
         
-        console.log(`正在搜索与${year}年相关的事件，共${events.length}个事件`);
-        
-        const relevantEvents = events.filter(event => {
-            // 检查事件时间格式
-            // 1. 如果有开始年份和结束年份，检查当前年份是否在这个范围内
-            if (event.year !== undefined && event.endYear !== undefined) {
-                const isRelevant = year >= event.year && year <= event.endYear;
-                if (isRelevant) {
-                    console.log(`匹配到事件(范围): ${event.name}, 年份范围 ${event.year}-${event.endYear}`);
-                }
-                return isRelevant;
-            }
+        // 计算每个事件的相关性并进行筛选
+        return events.map(event => {
+            // 确保兼容新旧数据格式
+            const startYear = event.startYear !== undefined ? event.startYear : event.year;
+            const endYear = event.endYear || startYear;
             
-            // 2. 如果只有一个年份，检查是否在合理范围内(±100年)
-            if (event.year !== undefined) {
-                const isRelevant = Math.abs(event.year - year) <= 100;
-                if (isRelevant) {
-                    console.log(`匹配到事件(单一): ${event.name}, 年份 ${event.year}`);
-                }
-                return isRelevant;
-            }
+            let relevance = 0; // 默认不相关
             
-            // 3. 如果有原始数据的时间范围，尝试解析
-            if (event.originalData && event.originalData.occurrenceTime) {
-                const timeStr = event.originalData.occurrenceTime;
-                if (timeStr.includes('至')) {
-                    const [startStr, endStr] = timeStr.split('至');
-                    const startYear = this.parseYearString(startStr);
-                    const endYear = this.parseYearString(endStr);
-                    if (startYear !== 0 && endYear !== 0) {
-                        const isRelevant = year >= startYear && year <= endYear;
-                        if (isRelevant) {
-                            console.log(`匹配到事件(原始范围): ${event.name}, 时间 ${timeStr}, 解析为 ${startYear}-${endYear}`);
-                        }
-                        return isRelevant;
-                    }
+            // 如果事件在当前年份的区间内，完全相关
+            if (year >= startYear && year <= endYear) {
+                relevance = 1.0;
+            } else {
+                // 根据距离当前年份的远近计算相关性
+                const closestYear = (Math.abs(startYear - year) < Math.abs(endYear - year)) 
+                    ? startYear : endYear;
+                const distance = Math.abs(closestYear - year);
+                
+                // 设置基础可见范围
+                let baseRange = 50; // 默认基础范围
+                
+                // 根据重要性增加范围（重要性1-5）
+                let importanceMultiplier = event.importance || 1;
+                let range = baseRange * importanceMultiplier;
+                
+                // 时间越久远，对范围要求越宽松（特别是对古代事件）
+                if (Math.abs(startYear) > 1000) {
+                    // 古代事件范围扩大
+                    range = range * 1.5;
+                }
+                
+                // 计算相关性，0-1之间
+                relevance = Math.max(0, 1 - (distance / range));
+                
+                // 特殊处理非常重要的事件（重要性>=4）
+                if (event.importance >= 4 && distance <= 200) {
+                    // 确保重要事件的相关性至少有一个最低值
+                    relevance = Math.max(relevance, 0.2);
                 }
             }
             
-            // 4. 尝试按照历史时期进行粗略匹配
-            if (year <= -8000) { // 史前时期
-                return event.category === '农业' || event.description?.includes('史前') || 
-                       event.name?.includes('史前') || event.description?.includes('古人类');
-            } else if (year <= -1000) { // 古代早期
-                return event.description?.includes('古代') || event.description?.includes('古文明') ||
-                       event.name?.includes('古代') || event.name?.includes('古文明');
-            } else if (year <= 1500) { // 古代晚期到中世纪
-                return event.description?.includes('中世纪') || event.description?.includes('古代') ||
-                       event.name?.includes('中世纪') || event.name?.includes('古代');
-            } else { // 现代
-                return event.description?.includes('现代') || event.description?.includes('工业') ||
-                       event.name?.includes('现代') || event.name?.includes('工业') ||
-                       (event.year >= 1500);
-            }
-            
-            return false;
-        });
-        
-        console.log(`找到${relevantEvents.length}个与${year}年相关的事件`);
-        return relevantEvents;
+            // 添加相关性属性
+            return {...event, relevance};
+        }).filter(event => event.relevance > 0.1); // 只保留相关性大于0.1的事件
     }
     
     /**
@@ -1869,39 +1908,79 @@ export class MapManager {
             return null;
         }
         
-        // 创建标记位置
-        const latlng = L.latLng(
-            feature.geometry.coordinates[1], 
-            feature.geometry.coordinates[0]
-        );
-        
-        // 根据重要性调整标记大小
-        const importance = feature.properties.importance || 1;
-        const size = 24 + importance * 4;
-        
-        // 创建自定义HTML标记
-        const icon = L.divIcon({
-            className: 'custom-marker',
-            html: this.createEventMarkerHTML(feature),
-            iconSize: [size, size],
-            iconAnchor: [size/2, size/2],
-            popupAnchor: [0, -size/2 - 5]
+        try {
+            // 创建标记位置 - GeoJSON坐标格式为[lng, lat]
+            const latlng = L.latLng(
+                feature.geometry.coordinates[1],  // lat
+                feature.geometry.coordinates[0]   // lng
+            );
+            
+            // 根据重要性调整标记大小
+            const importance = feature.properties.importance || 1;
+            const size = 24 + importance * 4;
+            
+            // 创建自定义HTML标记
+            const icon = L.divIcon({
+                className: 'custom-marker',
+                html: this.createEventMarkerHTML(feature),
+                iconSize: [size, size],
+                iconAnchor: [size/2, size/2],
+                popupAnchor: [0, -size/2 - 5]
+            });
+            
+            // 创建标记
+            const marker = L.marker(latlng, { 
+                icon: icon,
+                riseOnHover: true,
+                riseOffset: 300,
+                zIndexOffset: importance * 100
+            });
+            
+            // 添加气泡
+            marker.bindPopup(this.createEventPopupContent(feature));
+            
+            // 添加到地图
+            marker.addTo(this.map);
+            
+            return marker;
+        } catch (error) {
+            console.error(`创建事件标记时出错:`, error);
+            return null;
+        }
+    }
+    
+    /**
+     * 添加脉冲效果到指定位置
+     * @param {Object} latlng - 坐标位置
+     */
+    addPulseEffect(latlng) {
+        // 创建一个临时的脉冲效果
+        const pulseIcon = L.divIcon({
+            className: 'pulse-marker',
+            html: '<div class="pulse-circle"></div>',
+            iconSize: [40, 40],
+            iconAnchor: [20, 20]
         });
         
-        // 创建标记
-        const marker = L.marker(latlng, { 
-            icon: icon,
-            riseOnHover: true,
-            riseOffset: 300,
-            zIndexOffset: importance * 100
-        });
+        const pulseMarker = L.marker(latlng, { 
+            icon: pulseIcon,
+            zIndexOffset: 1000
+        }).addTo(this.map);
         
-        // 添加气泡
-        marker.bindPopup(this.createEventPopupContent(feature));
+        // 将脉冲标记添加到高亮列表
+        this.highlightedElements.push(pulseMarker);
         
-        // 添加到地图
-        marker.addTo(this.map);
-        
-        return marker;
+        // 3秒后移除脉冲效果
+        setTimeout(() => {
+            if (this.map.hasLayer(pulseMarker)) {
+                this.map.removeLayer(pulseMarker);
+                
+                // 从高亮列表中移除
+                const index = this.highlightedElements.indexOf(pulseMarker);
+                if (index !== -1) {
+                    this.highlightedElements.splice(index, 1);
+                }
+            }
+        }, 3000);
     }
 } 
