@@ -5,52 +5,85 @@
 
 const MapUtils = {
     /**
-     * 存储地图文件年份映射 - 仅使用整数年份
+     * 存储地图文件年份映射 - 使用所有可用的地图文件
      */
     mapYears: [
+        // 公元前地图
+        { year: -123000, file: 'world_bc123000.geojson' },
+        { year: -10000, file: 'world_bc10000.geojson' },
+        { year: -8000, file: 'world_bc8000.geojson' },
+        { year: -5000, file: 'world_bc5000.geojson' },
+        { year: -4000, file: 'world_bc4000.geojson' },
         { year: -3000, file: 'world_bc3000.geojson' },
         { year: -2000, file: 'world_bc2000.geojson' },
+        { year: -1500, file: 'world_bc1500.geojson' },
         { year: -1000, file: 'world_bc1000.geojson' },
+        { year: -700, file: 'world_bc700.geojson' },
         { year: -500, file: 'world_bc500.geojson' },
+        { year: -400, file: 'world_bc400.geojson' },
+        { year: -323, file: 'world_bc323.geojson' },
+        { year: -300, file: 'world_bc300.geojson' },
         { year: -200, file: 'world_bc200.geojson' },
-        { year: 0, file: 'world_0.geojson' },
+        { year: -100, file: 'world_bc100.geojson' },
+        { year: -1, file: 'world_bc1.geojson' },
+        // 公元后地图
+        { year: 100, file: 'world_100.geojson' },
         { year: 200, file: 'world_200.geojson' },
+        { year: 300, file: 'world_300.geojson' },
+        { year: 400, file: 'world_400.geojson' },
         { year: 500, file: 'world_500.geojson' },
+        { year: 600, file: 'world_600.geojson' },
+        { year: 700, file: 'world_700.geojson' },
         { year: 800, file: 'world_800.geojson' },
+        { year: 900, file: 'world_900.geojson' },
         { year: 1000, file: 'world_1000.geojson' },
+        { year: 1100, file: 'world_1100.geojson' },
         { year: 1200, file: 'world_1200.geojson' },
+        { year: 1279, file: 'world_1279.geojson' },
+        { year: 1300, file: 'world_1300.geojson' },
         { year: 1400, file: 'world_1400.geojson' },
+        { year: 1492, file: 'world_1492.geojson' },
         { year: 1500, file: 'world_1500.geojson' },
+        { year: 1530, file: 'world_1530.geojson' },
         { year: 1600, file: 'world_1600.geojson' },
+        { year: 1650, file: 'world_1650.geojson' },
         { year: 1700, file: 'world_1700.geojson' },
+        { year: 1715, file: 'world_1715.geojson' },
+        { year: 1783, file: 'world_1783.geojson' },
         { year: 1800, file: 'world_1800.geojson' },
+        { year: 1815, file: 'world_1815.geojson' },
+        { year: 1880, file: 'world_1880.geojson' },
         { year: 1900, file: 'world_1900.geojson' },
-        { year: 2000, file: 'world_2000.geojson' }
+        { year: 1914, file: 'world_1914.geojson' },
+        { year: 1920, file: 'world_1920.geojson' },
+        { year: 1930, file: 'world_1930.geojson' },
+        { year: 1938, file: 'world_1938.geojson' },
+        { year: 1945, file: 'world_1945.geojson' },
+        { year: 1960, file: 'world_1960.geojson' },
+        { year: 1994, file: 'world_1994.geojson' },
+        { year: 2000, file: 'world_2000.geojson' },
+        { year: 2010, file: 'world_2010.geojson' }
     ],
     
     /**
-     * historical-basemaps 仓库URL
+     * 本地历史地图路径
      */
-    historyBaseMapUrl: 'https://raw.githubusercontent.com/aourednik/historical-basemaps/master/geojson/',
+    localHistoryMapPath: './historical-basemaps/geojson/',
     
     /**
      * 查找最接近指定年份的地图数据文件
      * @param {number} year - 目标年份(负数表示公元前)
-     * @returns {string} 最接近的地图文件名
+     * @returns {Object} 最接近的地图年份对象
      */
     findClosestMapFile: function(year) {
         console.log(`查找最接近年份 ${year} 的地图文件`);
-        
-        // 确保返回整百年的地图
-        const targetYear = Math.round(year / 100) * 100;
-        console.log(`将年份 ${year} 规整为整百年: ${targetYear}`);
         
         // 查找最接近的年份
         let closestYear = null;
         let minDiff = Infinity;
         
         for (const mapYear of this.mapYears) {
-            const diff = Math.abs(mapYear.year - targetYear);
+            const diff = Math.abs(mapYear.year - year);
             if (diff < minDiff) {
                 minDiff = diff;
                 closestYear = mapYear;
@@ -58,7 +91,7 @@ const MapUtils = {
         }
         
         if (!closestYear) {
-            console.error(`未找到适合年份 ${targetYear} 的地图文件`);
+            console.error(`未找到适合年份 ${year} 的地图文件`);
             // 返回最后一个地图作为默认值
             closestYear = this.mapYears[this.mapYears.length - 1];
         }
@@ -69,61 +102,96 @@ const MapUtils = {
     
     /**
      * 加载GeoJSON数据
-     * @param {string} fileName - GeoJSON文件名
+     * @param {string} filePath - GeoJSON文件完整路径
      * @returns {Promise} 返回解析后的GeoJSON数据的Promise
      */
-    loadGeoJSON: async function(fileName) {
-        console.log(`尝试加载GeoJSON文件: ${fileName}`);
+    loadGeoJSON: async function(filePath) {
+        console.log(`尝试加载GeoJSON文件: ${filePath}`);
         
         try {
-            const response = await fetch(fileName);
+            console.log(`发送请求到: ${filePath}`);
+            const response = await fetch(filePath, {
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                }
+            });
             
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                console.error(`HTTP错误: ${response.status} ${response.statusText}, URL: ${filePath}`);
+                throw new Error(`HTTP error! status: ${response.status}, URL: ${filePath}`);
             }
             
+            console.log(`获取到响应, Content-Type: ${response.headers.get('content-type')}`);
             const data = await response.json();
-            console.log(`成功加载GeoJSON数据：${fileName}`);
+            console.log(`成功加载GeoJSON数据，包含 ${data.features ? data.features.length : '未知数量'} 个特征: ${filePath}`);
+            
+            if (!data || !data.features || data.features.length === 0) {
+                console.warn(`GeoJSON数据无效或没有特征: ${filePath}`);
+            } else {
+                // 检查特征的属性，确保颜色信息存在
+                const sampleFeature = data.features[0];
+                console.log(`示例特征属性: ${JSON.stringify(sampleFeature.properties)}`);
+            }
+            
             return this.normalizeGeoJSON(data);
         } catch (error) {
-            console.error(`加载GeoJSON文件 ${fileName} 失败:`, error);
+            console.error(`加载GeoJSON文件 ${filePath} 失败:`, error);
             throw error;
         }
     },
     
     /**
-     * 从historical-basemaps仓库加载GeoJSON数据
-     * @param {string} fileName - GeoJSON文件名
+     * 从本地路径加载指定年份的GeoJSON数据
+     * @param {number} year - 目标年份
      * @returns {Promise} 返回解析后的GeoJSON数据的Promise
      */
-    loadGeoJSONFromRepo: async function(year) {
-        console.log(`尝试从historical-basemaps仓库加载GeoJSON文件: ${year}`);
+    loadHistoricalMap: async function(year) {
+        console.log(`尝试加载年份 ${year} 的历史地图`);
         
         try {
+            // 找到最接近的地图文件
             const mapData = this.findClosestMapFile(year);
-            const url = `${this.historyBaseMapUrl}${mapData.file}`;
-            console.log(`尝试从仓库加载GeoJSON: ${url}`);
             
-            const response = await fetch(url);
+            // 尝试多个可能的路径加载地图
+            const possiblePaths = [
+                `${this.localHistoryMapPath}${mapData.file}`,  // 当前设置的路径
+                `../historical-basemaps/geojson/${mapData.file}`, // 上一级目录
+                `./historical-basemaps/geojson/${mapData.file}`, // 当前目录
+                `/historical-basemaps/geojson/${mapData.file}`, // 根目录
+                `/c:/Users/maoxi/AI-inferencecH/BookMap/historical-basemaps/geojson/${mapData.file}` // 绝对路径
+            ];
             
-            if (!response.ok) {
-                console.error(`无法从仓库加载GeoJSON: ${response.status} ${response.statusText}`);
-                return null;
+            let data = null;
+            let loadSuccess = false;
+            
+            // 尝试每个路径
+            for (const path of possiblePaths) {
+                try {
+                    console.log(`尝试从路径加载GeoJSON: ${path}`);
+                    data = await this.loadGeoJSON(path);
+                    if (data && data.features && data.features.length > 0) {
+                        console.log(`成功从路径加载地图: ${path}`);
+                        loadSuccess = true;
+                        break;
+                    }
+                } catch (error) {
+                    console.warn(`从路径 ${path} 加载失败:`, error.message);
+                    // 继续尝试下一个路径
+                }
             }
             
-            const data = await response.json();
-            console.log(`成功从仓库加载GeoJSON，包含 ${data.features.length} 个特征`);
+            if (!loadSuccess) {
+                console.warn(`未能从所有可能的路径加载地图，尝试加载备用地图`);
+                return await this.loadFallbackMap();
+            }
             
-            // 检查并标准化GeoJSON数据
-            const normalizedData = this.normalizeGeoJSON(data);
-            
-            // 缓存到本地
-            this.cacheGeoJSONLocally(mapData.file, normalizedData);
-            
-            return normalizedData;
+            console.log(`成功加载年份 ${mapData.year} 的历史地图，包含 ${data.features.length} 个特征`);
+            return data;
         } catch (error) {
-            console.error('从仓库加载GeoJSON时出错:', error);
-            return null;
+            console.error('加载历史地图时出错:', error);
+            // 尝试加载备用地图
+            return await this.loadFallbackMap();
         }
     },
     
@@ -135,20 +203,38 @@ const MapUtils = {
     loadFallbackMap: async function() {
         console.log('加载备用世界地图');
         
-        try {
-            const response = await fetch('data/world.geojson');
-            if (!response.ok) {
-                console.error(`无法加载备用地图: ${response.status} ${response.statusText}`);
-                return null;
+        // 尝试多个可能的备用地图路径
+        const fallbackPaths = [
+            './data/world.geojson',
+            './historical-basemaps/geojson/world_2000.geojson',
+            './historical-basemaps/geojson/world_1994.geojson',
+            '../historical-basemaps/geojson/world_2000.geojson',
+            '/historical-basemaps/geojson/world_2000.geojson'
+        ];
+        
+        // 尝试每个备用路径
+        for (const path of fallbackPaths) {
+            try {
+                console.log(`尝试从备用路径加载地图: ${path}`);
+                const response = await fetch(path);
+                
+                if (!response.ok) {
+                    console.warn(`无法从备用路径加载: ${path}, 状态: ${response.status}`);
+                    continue;
+                }
+                
+                const data = await response.json();
+                console.log(`成功从备用路径加载地图: ${path}, 包含 ${data.features ? data.features.length : '未知数量'} 个特征`);
+                return data;
+            } catch (error) {
+                console.warn(`从备用路径 ${path} 加载失败:`, error.message);
+                // 继续尝试下一个路径
             }
-            
-            const data = await response.json();
-            console.log(`成功加载备用地图，包含 ${data.features.length} 个特征`);
-            return data;
-        } catch (error) {
-            console.error('加载备用地图时出错:', error);
-            return null;
         }
+        
+        // 如果所有备用尝试都失败，返回一个最简单的默认地图
+        console.error('所有备用地图加载尝试均失败，返回默认世界边界');
+        return this.getDefaultWorldMap();
     },
     
     /**
@@ -337,20 +423,58 @@ const MapUtils = {
      * @returns {Object} GeoJSON FeatureCollection
      */
     eventsToGeoJSON: function(events) {
+        if (!events || !Array.isArray(events)) {
+            console.warn('传入的事件数据无效');
+            return {
+                type: "FeatureCollection",
+                features: []
+            };
+        }
+        
+        console.log(`转换 ${events.length} 个事件为GeoJSON格式`);
+        
         const features = events.map(event => {
+            // 检查位置信息是否有效
+            if (!event.location || !Array.isArray(event.location) || event.location.length < 2) {
+                console.warn(`事件 "${event.title || '未命名'}" 的位置信息无效，使用默认位置`);
+                // 使用默认位置 (0,0)
+                event.location = [0, 0];
+            }
+            
+            // 处理年份格式化
+            let yearDisplay = event.year;
+            if (event.year < 0) {
+                yearDisplay = `公元前 ${Math.abs(event.year)} 年`;
+            } else {
+                yearDisplay = `公元 ${event.year} 年`;
+            }
+            
+            // 准备描述文本
+            let description = event.description || '';
+            if (event.endYear && event.endYear !== event.year) {
+                description = `<p><strong>持续时间:</strong> ${yearDisplay} - ${
+                    event.endYear < 0 
+                        ? `公元前 ${Math.abs(event.endYear)} 年`
+                        : `公元 ${event.endYear} 年`
+                }</p>` + description;
+            }
+            
             return {
                 type: "Feature",
                 properties: {
                     id: event.id,
                     title: event.title,
                     year: event.year,
-                    description: event.description,
+                    endYear: event.endYear,
+                    description: description,
                     category: event.category,
-                    importance: event.importance
+                    importance: event.importance,
+                    period: event.period,
+                    yearDisplay: yearDisplay
                 },
                 geometry: {
                     type: "Point",
-                    coordinates: event.location
+                    coordinates: [event.location[0], event.location[1]] // [经度, 纬度]
                 }
             };
         });
@@ -382,6 +506,17 @@ const MapUtils = {
             "贸易": "#FFEB3B",
             "气候": "#00BCD4",
             "政治": "#3F51B5",
+            "宗教": "#E91E63",
+            "文化": "#673AB7",
+            "生态": "#009688",
+            "军事": "#F44336",
+            "多领域": "#9E9E9E",
+            
+            // 物种类别
+            "物种": "#8BC34A",
+            "作物": "#8BC34A",
+            "家畜": "#FFC107",
+            "野生动物": "#FF5722",
             
             // 迁徙类别颜色
             "早期人类": "#8BC34A",
@@ -391,7 +526,17 @@ const MapUtils = {
             "帝国扩张": "#F44336",
             "疾病传播": "#FF9800",
             "殖民扩张": "#9C27B0",
-            "强制迁移": "#E91E63"
+            "强制迁移": "#E91E63",
+            
+            // 技术类别颜色
+            "通信": "#2196F3",
+            "交通": "#3F51B5",
+            "能源": "#FF5722",
+            "材料": "#009688",
+            "医疗": "#E91E63",
+            "冶金": "#607D8B",
+            "计算": "#673AB7",
+            "导航": "#00BCD4"
         };
         
         // 获取特征类别
@@ -428,16 +573,33 @@ const MapUtils = {
      */
     createEventPopupContent: function(feature) {
         const props = feature.properties;
-        let yearDisplay = props.year < 0 ? `公元前${Math.abs(props.year)}年` : `公元${props.year}年`;
         
-        return `
-            <div class="custom-popup">
-                <h4>${props.title}</h4>
-                <p><strong>时间:</strong> ${yearDisplay}</p>
-                <p><strong>类别:</strong> ${props.category}</p>
-                <p>${props.description}</p>
-            </div>
+        // 准备基本信息
+        let popupContent = `
+            <div class="event-popup">
+                <h3>${props.title || '未命名事件'}</h3>
+                <p><strong>时间:</strong> ${props.yearDisplay || '未知'}</p>
         `;
+        
+        // 添加类别
+        if (props.category) {
+            popupContent += `<p><strong>类别:</strong> ${props.category}</p>`;
+        }
+        
+        // 添加描述
+        if (props.description) {
+            popupContent += `<p>${props.description}</p>`;
+        }
+        
+        // 添加时期
+        if (props.period) {
+            popupContent += `<p><strong>时期:</strong> ${props.period}</p>`;
+        }
+        
+        // 关闭容器
+        popupContent += `</div>`;
+        
+        return popupContent;
     },
     
     /**
@@ -447,17 +609,62 @@ const MapUtils = {
      */
     createMigrationPopupContent: function(feature) {
         const props = feature.properties;
-        let startYearDisplay = props.startYear < 0 ? `公元前${Math.abs(props.startYear)}年` : `公元${props.startYear}年`;
-        let endYearDisplay = props.endYear < 0 ? `公元前${Math.abs(props.endYear)}年` : `公元${props.endYear}年`;
         
-        return `
-            <div class="custom-popup">
-                <h4>${props.name}</h4>
+        // 处理年份显示
+        let startYearDisplay = props.startYear < 0 
+            ? `公元前 ${Math.abs(props.startYear)} 年` 
+            : `公元 ${props.startYear} 年`;
+            
+        let endYearDisplay = props.endYear < 0 
+            ? `公元前 ${Math.abs(props.endYear)} 年` 
+            : `公元 ${props.endYear} 年`;
+        
+        // 准备基本信息
+        let popupContent = `
+            <div class="migration-popup">
+                <h3>${props.name || '未命名迁徙'}</h3>
                 <p><strong>时间范围:</strong> ${startYearDisplay} - ${endYearDisplay}</p>
-                <p><strong>类别:</strong> ${props.category}</p>
-                <p>${props.description}</p>
-            </div>
         `;
+        
+        // 添加类别
+        if (props.category) {
+            popupContent += `<p><strong>类别:</strong> ${props.category}</p>`;
+        }
+        
+        // 添加人口规模
+        if (props.group) {
+            popupContent += `<p><strong>人口规模:</strong> ${props.group}</p>`;
+        }
+        
+        // 添加描述
+        if (props.description) {
+            popupContent += `<p><strong>迁徙原因:</strong> ${props.description}</p>`;
+        }
+        
+        // 添加影响
+        if (props.impact) {
+            popupContent += `<p><strong>影响:</strong> ${props.impact}</p>`;
+        }
+        
+        // 添加文化特征
+        if (props.culturalTraits) {
+            popupContent += `<p><strong>文化特征:</strong> ${props.culturalTraits}</p>`;
+        }
+        
+        // 添加携带技术
+        if (props.technologies) {
+            popupContent += `<p><strong>携带技术:</strong> ${props.technologies}</p>`;
+        }
+        
+        // 添加时期
+        if (props.period) {
+            popupContent += `<p><strong>时期:</strong> ${props.period}</p>`;
+        }
+        
+        // 关闭容器
+        popupContent += `</div>`;
+        
+        return popupContent;
     },
     
     /**
@@ -477,7 +684,7 @@ const MapUtils = {
         console.log(`检查事件 "${event.title}" (${event.year}) 是否与年份 ${currentYear} 相关`);
         
         // 兼容性处理：有些事件可能使用startYear/endYear，有些可能使用year/endYear
-        const eventStartYear = event.startYear !== undefined ? event.startYear : event.year;
+        const eventStartYear = event.year;
         const eventEndYear = event.endYear;
         
         // 确保有有效的年份
@@ -503,7 +710,7 @@ const MapUtils = {
         
         // 扩大重要历史事件的影响范围
         // 事件影响范围与其发生年代和重要性有关
-        let impactRange = 50; // 默认影响范围
+        let impactRange = 100; // 默认影响范围
         
         // 如果事件有重要性评级，适当调整影响范围
         if (event.importance) {
@@ -632,28 +839,8 @@ const MapUtils = {
     }
 };
 
-// 导出工具对象
-if (typeof module !== 'undefined') {
-    module.exports = MapUtils;
-} 
+// 将 MapUtils 添加到 window 对象，使其成为全局可访问
+window.MapUtils = MapUtils;
 
-// 导出需要的函数供ES模块使用
-export function getMapForYear(year) {
-    return MapUtils.loadGeoJSONFromRepo(year);
-}
-
-export function isEventRelevant(event, currentYear) {
-    return MapUtils.isEventRelevantToYear(event, currentYear);
-}
-
-export function isMigrationRelevant(migration, currentYear) {
-    return MapUtils.isMigrationRelevantToYear(migration, currentYear);
-}
-
-export function getKeyYears() {
-    return MapUtils.mapYears.map(item => item.year);
-}
-
-export function findClosestMapFile(year) {
-    return MapUtils.findClosestMapFile(year);
-} 
+// 导出 MapUtils 对象以便 ES 模块也能正确导入
+export default MapUtils;
