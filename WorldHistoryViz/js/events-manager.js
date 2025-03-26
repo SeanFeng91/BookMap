@@ -103,7 +103,7 @@ export class EventsManager {
             this.eventsListElement.innerHTML = '';
         }
         
-        // 获取与当前年份相关的事件
+        // 获取与当前类别相关的事件
         const relevantEvents = this.filterEvents(events, year);
         
         // 显示年份范围
@@ -111,7 +111,7 @@ export class EventsManager {
         
         // 如果没有相关事件，显示提示信息
         if (relevantEvents.length === 0) {
-            this.showNoEventsMessage(year);
+            this.showEventListHelp();
             return;
         }
         
@@ -119,16 +119,75 @@ export class EventsManager {
         const eventsContainer = document.createElement('div');
         eventsContainer.className = 'events-container';
         
-        // 添加事件卡片
+        // 对事件按类别分组
+        const categories = {
+            '农业': [],
+            '技术': [],
+            '文明': [],
+            '战争': [],
+            '疾病': [],
+            '迁徙': [],
+            '物种': [],
+            '其他': []
+        };
+        
         relevantEvents.forEach(event => {
-            const eventCard = this.createEventCard(event);
-            eventsContainer.appendChild(eventCard);
+            const category = event.category || '其他';
+            if (categories[category]) {
+                categories[category].push(event);
+            } else {
+                categories['其他'].push(event);
+            }
+        });
+        
+        // 创建类别分组
+        Object.keys(categories).forEach(category => {
+            const events = categories[category];
+            if (events.length === 0) return;
+            
+            // 创建类别标题
+            const categoryHeader = document.createElement('div');
+            categoryHeader.className = 'category-header';
+            categoryHeader.innerHTML = `
+                <div class="category-title">
+                    <i class="material-icons-round ${this.getCategoryIconClass(category)}">${this.getCategoryIcon(category)}</i>
+                    <span>${category}</span>
+                    <span class="category-count">(${events.length})</span>
+                </div>
+            `;
+            eventsContainer.appendChild(categoryHeader);
+            
+            // 添加该类别的事件卡片
+            events.forEach(event => {
+                const eventCard = this.createEventCard(event);
+                eventsContainer.appendChild(eventCard);
+            });
         });
         
         // 添加到DOM
         if (this.eventsListElement) {
             this.eventsListElement.appendChild(eventsContainer);
         }
+    }
+    
+    /**
+     * 显示事件列表帮助信息
+     */
+    showEventListHelp() {
+        if (!this.eventsListElement) return;
+        
+        const messageContainer = document.createElement('div');
+        messageContainer.className = 'no-events';
+        
+        messageContainer.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-40 text-center">
+                <i class="material-icons-round text-gray-400 text-4xl mb-3">info_outline</i>
+                <p class="text-gray-500">选择您感兴趣的事件类别</p>
+                <p class="text-gray-400 text-sm mt-2">点击地图上的图标查看更多详情</p>
+            </div>
+        `;
+        
+        this.eventsListElement.appendChild(messageContainer);
     }
     
     /**
@@ -140,55 +199,9 @@ export class EventsManager {
     filterEvents(events, year) {
         if (!events || !Array.isArray(events)) return [];
         
-        console.log(`筛选年份 ${year} 的事件，类别: ${this.currentCategory}, 重要性: ${this.currentImportance}`);
+        console.log(`筛选事件，类别: ${this.currentCategory}`);
         
-        // 搜索范围：当前年份前后100年
-        const rangeStart = year - 100;
-        const rangeEnd = year + 100;
-        
-        // 先按年份筛选
-        let filtered = events.filter(event => {
-            // 如果事件有开始和结束年份，检查当前年份是否在该范围内
-            if (event.year !== undefined && event.endYear !== undefined) {
-                return year >= event.year && year <= event.endYear;
-            }
-            
-            // 如果事件只有一个年份，检查与当前年份的差距是否在范围内
-            if (event.year !== undefined) {
-                return Math.abs(event.year - year) <= 100;
-            }
-            
-            // 如果有原始数据的时间范围，尝试解析
-            if (event.originalData && event.originalData.occurrenceTime) {
-                const timeStr = event.originalData.occurrenceTime;
-                if (timeStr.includes('至')) {
-                    const [startStr, endStr] = timeStr.split('至');
-                    const startYear = this.parseYearString(startStr);
-                    const endYear = this.parseYearString(endStr);
-                    if (startYear !== 0 && endYear !== 0) {
-                        return year >= startYear && year <= endYear;
-                    }
-                }
-            }
-            
-            // 尝试按照历史时期进行粗略匹配
-            if (year <= -8000) { // 史前时期
-                return event.category === '农业' || event.description.includes('史前') || 
-                       event.name.includes('史前') || event.description.includes('古人类');
-            } else if (year <= -1000) { // 古代早期
-                return event.description.includes('古代') || event.description.includes('古文明') ||
-                       event.name.includes('古代') || event.name.includes('古文明');
-            } else if (year <= 1500) { // 古代晚期到中世纪
-                return event.description.includes('中世纪') || event.description.includes('古代') ||
-                       event.name.includes('中世纪') || event.name.includes('古代');
-            } else { // 现代
-                return event.description.includes('现代') || event.description.includes('工业') ||
-                       event.name.includes('现代') || event.name.includes('工业') ||
-                       (event.year >= 1500);
-            }
-            
-            return false;
-        });
+        let filtered = events;
         
         // 按类别筛选
         if (this.currentCategory !== 'all') {
@@ -198,14 +211,31 @@ export class EventsManager {
             });
         }
         
-        // 按重要性筛选
-        if (this.currentImportance !== 'all') {
-            const minImportance = parseInt(this.currentImportance);
-            filtered = filtered.filter(event => {
-                if (!event.importance) return false;
-                return event.importance >= minImportance;
-            });
-        }
+        // 按时间区间筛选
+        filtered = filtered.filter(event => {
+            const startYear = event.startYear !== undefined ? event.startYear : event.year;
+            const endYear = event.endYear || startYear;
+            
+            const range = 100; // 默认范围
+            
+            // 如果事件在当前年份的区间内
+            if (year >= startYear && year <= endYear) {
+                return true;
+            }
+            
+            // 如果事件接近当前年份
+            if (Math.abs(startYear - year) <= range || Math.abs(endYear - year) <= range) {
+                return true;
+            }
+            
+            // 根据重要性扩大范围
+            if (event.importance && event.importance >= 4) {
+                const importanceRange = event.importance * 100;
+                return Math.abs(startYear - year) <= importanceRange || Math.abs(endYear - year) <= importanceRange;
+            }
+            
+            return false;
+        });
         
         // 按重要性排序
         filtered.sort((a, b) => {
@@ -215,52 +245,20 @@ export class EventsManager {
             }
             
             // 然后按年份排序
-            if (a.year !== b.year) {
-                return a.year - b.year;
+            const aYear = a.startYear !== undefined ? a.startYear : a.year;
+            const bYear = b.startYear !== undefined ? b.startYear : b.year;
+            
+            if (aYear !== bYear) {
+                return aYear - bYear;
             }
             
-            // 最后按名称排序
-            return a.name.localeCompare(b.name);
+            // 最后按名称排序，处理title为undefined的情况
+            const aTitle = a.title || '';
+            const bTitle = b.title || '';
+            return aTitle.localeCompare(bTitle);
         });
         
         return filtered;
-    }
-    
-    /**
-     * 解析年份字符串
-     * @param {string} yearStr - 年份字符串
-     * @returns {number} - 解析后的年份
-     */
-    parseYearString(yearStr) {
-        if (!yearStr) return 0;
-        
-        // 去除空格
-        yearStr = yearStr.trim();
-        
-        // 处理"公元前"情况
-        if (yearStr.includes('公元前')) {
-            const numStr = yearStr.replace('公元前', '').replace('年', '').trim();
-            const num = parseInt(numStr);
-            return isNaN(num) ? 0 : -num;
-        }
-        
-        // 处理"公元"情况
-        if (yearStr.includes('公元')) {
-            const numStr = yearStr.replace('公元', '').replace('年', '').trim();
-            const num = parseInt(numStr);
-            return isNaN(num) ? 0 : num;
-        }
-        
-        // 处理带有"年"的情况
-        if (yearStr.includes('年')) {
-            const numStr = yearStr.replace('年', '').trim();
-            const num = parseInt(numStr);
-            return isNaN(num) ? 0 : num;
-        }
-        
-        // 尝试直接解析数字
-        const num = parseInt(yearStr);
-        return isNaN(num) ? 0 : num;
     }
     
     /**
@@ -268,42 +266,51 @@ export class EventsManager {
      * @param {number} year - 当前年份
      */
     updateYearRangeDisplay(year) {
-        const yearRangeElement = document.getElementById('events-year-range');
-        if (yearRangeElement) {
-            const startYear = year - 100;
-            const endYear = year + 100;
-            
-            const formatYear = (y) => {
-                return y < 0 ? `公元前${Math.abs(y)}年` : `公元${y}年`;
-            };
-            
-            yearRangeElement.textContent = `(${formatYear(startYear)} - ${formatYear(endYear)})`;
+        const yearDisplay = document.getElementById('current-year-display');
+        if (yearDisplay) {
+            const yearText = year < 0 ? `公元前 ${Math.abs(year)} 年` : `公元 ${year} 年`;
+            yearDisplay.textContent = yearText;
         }
     }
     
     /**
-     * 显示没有事件的提示信息
-     * @param {number} year - 当前年份
+     * 获取类别图标
+     * @param {string} category - 类别名
+     * @returns {string} 图标名
      */
-    showNoEventsMessage(year) {
-        if (!this.eventsListElement) return;
-        
-        const messageContainer = document.createElement('div');
-        messageContainer.className = 'no-events';
-        
-        const formatYear = (y) => {
-            return y < 0 ? `公元前${Math.abs(y)}年` : `公元${y}年`;
+    getCategoryIcon(category) {
+        const icons = {
+            '农业': 'eco',
+            '技术': 'construction',
+            '文明': 'account_balance',
+            '战争': 'gavel',
+            '疾病': 'coronavirus',
+            '迁徙': 'transfer_within_a_station',
+            '物种': 'pets',
+            '其他': 'info'
         };
         
-        messageContainer.innerHTML = `
-            <div class="flex flex-col items-center justify-center h-40 text-center">
-                <i class="material-icons-round text-gray-400 text-4xl mb-3">search_off</i>
-                <p class="text-gray-500">在 ${formatYear(year)} 附近未找到${this.currentCategory !== 'all' ? this.currentCategory : ''}历史事件</p>
-                <p class="text-gray-400 text-sm mt-2">尝试调整时间或筛选条件</p>
-            </div>
-        `;
+        return icons[category] || 'info';
+    }
+    
+    /**
+     * 获取类别图标的CSS类
+     * @param {string} category - 类别名
+     * @returns {string} CSS类
+     */
+    getCategoryIconClass(category) {
+        const classes = {
+            '农业': 'text-green-700',
+            '技术': 'text-blue-700',
+            '文明': 'text-yellow-700',
+            '战争': 'text-red-700',
+            '疾病': 'text-orange-700',
+            '迁徙': 'text-purple-700',
+            '物种': 'text-teal-700',
+            '其他': 'text-gray-700'
+        };
         
-        this.eventsListElement.appendChild(messageContainer);
+        return classes[category] || 'text-gray-700';
     }
     
     /**
@@ -312,115 +319,53 @@ export class EventsManager {
      * @returns {HTMLElement} 事件卡片元素
      */
     createEventCard(event) {
-        const cardElement = document.createElement('div');
-        cardElement.className = 'event-card slide-in';
-        cardElement.dataset.eventId = event.id;
+        const card = document.createElement('div');
+        card.className = 'event-card';
+        card.dataset.eventId = event.id;
         
-        // 格式化年份
-        const formatYear = (year) => {
-            if (!year && year !== 0) return '未知';
-            return year < 0 ? `公元前${Math.abs(year)}年` : `公元${year}年`;
-        };
+        // 确定年份显示
+        const startYear = event.startYear !== undefined ? event.startYear : event.year;
+        const endYear = event.endYear;
         
-        // 获取年份显示文本
-        let yearDisplay = '';
-        if (event.year !== undefined && event.endYear !== undefined && event.year !== event.endYear) {
-            yearDisplay = `${formatYear(event.year)} - ${formatYear(event.endYear)}`;
-        } else if (event.year !== undefined) {
-            yearDisplay = formatYear(event.year);
+        let yearText = '';
+        if (startYear < 0 && endYear < 0) {
+            yearText = `前${Math.abs(startYear)}${endYear !== startYear ? ` - 前${Math.abs(endYear)}` : ''}`;
+        } else if (startYear < 0 && endYear >= 0) {
+            yearText = `前${Math.abs(startYear)} - ${endYear}`;
         } else {
-            yearDisplay = '未知时间';
+            yearText = `${startYear}${endYear !== startYear ? ` - ${endYear}` : ''}`;
         }
         
-        // 获取重要性星级
-        const importanceStars = '★'.repeat(event.importance || 0);
-        
-        // 构建卡片内容
-        const cardContent = `
-            <div class="event-card-inner">
-                <div class="flex items-center justify-between">
-                    <div class="event-title">
-                        <i class="material-icons-round ${this.getCategoryIconClass(event.category || '其他')}">${this.getCategoryIcon(event.category || '其他')}</i>
-                        <span>${event.name}</span>
-                    </div>
-                    <span class="event-category ${event.category || '其他'}">${event.category || '其他'}</span>
-                </div>
-                
-                <div class="event-meta">
-                    <div class="event-date">
-                        <i class="material-icons-round text-gray-400 text-sm">event</i>
-                        <span>${yearDisplay}</span>
-                    </div>
-                    <div class="event-importance">
-                        <i class="material-icons-round text-amber-500 text-sm">star</i>
-                        <span>${importanceStars}</span>
-                    </div>
-                </div>
-                
-                <div class="event-description">
-                    ${event.description || '无详细描述'}
-                </div>
-                
-                <div class="text-right mt-1">
-                    <button class="text-xs text-blue-500 hover:text-blue-700 view-details-btn">
-                        <i class="material-icons-round align-middle text-sm">info</i>
-                        查看详情
-                    </button>
-                </div>
+        card.innerHTML = `
+            <div class="event-time">${yearText}</div>
+            <div class="event-content">
+                <div class="event-title">${event.title || '未命名事件'}</div>
+                <div class="event-description">${event.description || '无描述'}</div>
             </div>
         `;
         
-        cardElement.innerHTML = cardContent;
-        
         // 添加点击事件
-        cardElement.addEventListener('click', () => {
-            this.showEventDetails(event);
-            
-            // 调用回调函数
-            if (this.eventSelectedCallback) {
-                this.eventSelectedCallback(event.id);
-            }
+        card.addEventListener('click', () => {
+            this.handleEventClick(event);
         });
         
-        return cardElement;
+        return card;
     }
     
     /**
-     * 获取类别图标
-     * @param {string} category - 类别名称
-     * @returns {string} 图标名称
+     * 处理事件卡片点击
+     * @param {Object} event - 事件对象
      */
-    getCategoryIcon(category) {
-        const icons = {
-            '农业': 'grass',
-            '技术': 'precision_manufacturing',
-            '文明': 'account_balance',
-            '征服': 'gavel',
-            '疾病': 'coronavirus',
-            '迁徙': 'timeline',
-            '其他': 'category'
-        };
+    handleEventClick(event) {
+        console.log('事件点击:', event);
         
-        return icons[category] || 'category';
-    }
-    
-    /**
-     * 获取类别图标CSS类
-     * @param {string} category - 类别名称
-     * @returns {string} CSS类名
-     */
-    getCategoryIconClass(category) {
-        const classes = {
-            '农业': 'text-green-600',
-            '技术': 'text-blue-600',
-            '文明': 'text-purple-600',
-            '征服': 'text-red-600',
-            '疾病': 'text-amber-600',
-            '迁徙': 'text-purple-600',
-            '其他': 'text-gray-600'
-        };
+        // 显示事件详情
+        this.showEventDetails(event);
         
-        return classes[category] || 'text-gray-600';
+        // 调用回调
+        if (this.eventSelectedCallback) {
+            this.eventSelectedCallback(event);
+        }
     }
     
     /**
@@ -433,108 +378,73 @@ export class EventsManager {
         // 显示详情面板
         this.eventDetailsElement.classList.remove('hidden');
         
-        // 格式化年份
-        const formatYear = (year) => {
-            if (!year && year !== 0) return '未知';
-            return year < 0 ? `公元前${Math.abs(year)}年` : `公元${year}年`;
-        };
+        // 清空内容
+        this.eventDetailsElement.innerHTML = '';
         
-        // 获取年份显示文本
-        let yearDisplay = '';
-        if (event.year !== undefined && event.endYear !== undefined && event.year !== event.endYear) {
-            yearDisplay = `${formatYear(event.year)} - ${formatYear(event.endYear)}`;
-        } else if (event.year !== undefined) {
-            yearDisplay = formatYear(event.year);
-        } else {
-            yearDisplay = '未知时间';
-        }
-        
-        // 获取重要性星级
-        const importanceStars = '★'.repeat(event.importance || 0);
-        
-        // 构建详情内容
-        const detailsContent = document.getElementById('event-details-content');
-        if (detailsContent) {
+        if (event) {
+            // 确定年份显示
+            const startYear = event.startYear !== undefined ? event.startYear : event.year;
+            const endYear = event.endYear;
+            
+            let yearText = '';
+            if (startYear < 0 && endYear < 0) {
+                yearText = `公元前 ${Math.abs(startYear)} 年${endYear !== startYear ? ` - 公元前 ${Math.abs(endYear)} 年` : ''}`;
+            } else if (startYear < 0 && endYear >= 0) {
+                yearText = `公元前 ${Math.abs(startYear)} 年 - 公元 ${endYear} 年`;
+            } else {
+                yearText = `公元 ${startYear} 年${endYear !== startYear ? ` - 公元 ${endYear} 年` : ''}`;
+            }
+            
+            // 创建详情内容
+            const detailsContent = document.createElement('div');
+            detailsContent.className = 'event-details-content';
+            
             detailsContent.innerHTML = `
-                <div class="bg-gray-50 p-3 rounded-lg mb-4 border border-gray-200">
-                    <div class="flex items-center gap-2 mb-2">
-                        <i class="material-icons-round ${this.getCategoryIconClass(event.category || '其他')} text-2xl">${this.getCategoryIcon(event.category || '其他')}</i>
-                        <h2 class="text-lg font-semibold text-gray-900">${event.name}</h2>
-                    </div>
-                    <div class="flex justify-between items-center text-sm text-gray-600">
-                        <div>
-                            <i class="material-icons-round align-middle text-sm">event</i>
-                            ${yearDisplay}
-                        </div>
-                        <div class="text-amber-500">
-                            ${importanceStars}
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="mb-4">
-                    <h3 class="text-sm font-medium text-gray-700 mb-1 flex items-center">
-                        <i class="material-icons-round text-gray-500 mr-1">description</i>
-                        事件描述
-                    </h3>
-                    <p class="text-sm text-gray-600 border-l-2 border-gray-300 pl-3 py-1">${event.description || '无详细描述'}</p>
-                </div>
-                
-                ${event.historicalSignificance ? `
-                <div class="mb-4">
-                    <h3 class="text-sm font-medium text-gray-700 mb-1 flex items-center">
-                        <i class="material-icons-round text-gray-500 mr-1">history_edu</i>
-                        历史意义
-                    </h3>
-                    <p class="text-sm text-gray-600 border-l-2 border-gray-300 pl-3 py-1">${event.historicalSignificance}</p>
-                </div>
-                ` : ''}
-                
-                ${event.location ? `
-                <div class="mb-4">
-                    <h3 class="text-sm font-medium text-gray-700 mb-1 flex items-center">
-                        <i class="material-icons-round text-gray-500 mr-1">place</i>
-                        发生地点
-                    </h3>
-                    <p class="text-sm text-gray-600">${event.location}</p>
-                </div>
-                ` : ''}
-                
-                ${event.relatedTechnologies && event.relatedTechnologies.length > 0 ? `
-                <div class="mb-4">
-                    <h3 class="text-sm font-medium text-gray-700 mb-1 flex items-center">
-                        <i class="material-icons-round text-gray-500 mr-1">build</i>
-                        相关技术
-                    </h3>
-                    <div class="flex flex-wrap gap-1">
-                        ${event.relatedTechnologies.map(tech => 
-                            `<span class="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs">${tech}</span>`
-                        ).join('')}
-                    </div>
-                </div>
-                ` : ''}
-                
-                ${event.relatedSpecies && event.relatedSpecies.length > 0 ? `
-                <div class="mb-4">
-                    <h3 class="text-sm font-medium text-gray-700 mb-1 flex items-center">
-                        <i class="material-icons-round text-gray-500 mr-1">pets</i>
-                        相关物种
-                    </h3>
-                    <div class="flex flex-wrap gap-1">
-                        ${event.relatedSpecies.map(species => 
-                            `<span class="px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-xs">${species}</span>`
-                        ).join('')}
-                    </div>
-                </div>
-                ` : ''}
-                
-                <div class="mt-4 pt-3 border-t border-gray-200 text-center">
-                    <button class="close-details-btn text-sm text-gray-500 hover:text-gray-700">
-                        <i class="material-icons-round align-middle">close</i>
-                        关闭详情
+                <div class="event-details-header">
+                    <h3 class="event-details-title">${event.title || '未命名事件'}</h3>
+                    <button class="close-details-btn">
+                        <i class="material-icons-round">close</i>
                     </button>
                 </div>
+                
+                <div class="event-details-meta">
+                    <div class="event-details-time">
+                        <i class="material-icons-round">event</i>
+                        <span>${yearText}</span>
+                    </div>
+                    <div class="event-details-category">
+                        <i class="material-icons-round ${this.getCategoryIconClass(event.category)}">${this.getCategoryIcon(event.category)}</i>
+                        <span>${event.category || '未分类'}</span>
+                    </div>
+                    <div class="event-details-location">
+                        <i class="material-icons-round">place</i>
+                        <span>${event.region || '未知地点'}</span>
+                    </div>
+                </div>
+                
+                <div class="event-details-description">
+                    <h4>描述</h4>
+                    <p>${event.description || '无描述'}</p>
+                </div>
+                
+                ${event.impact ? `
+                <div class="event-details-impact">
+                    <h4>影响</h4>
+                    <p>${event.impact}</p>
+                </div>
+                ` : ''}
+                
+                <div class="event-details-importance">
+                    <h4>历史重要性</h4>
+                    <div class="importance-stars">
+                        ${Array(5).fill(0).map((_, i) => 
+                            `<i class="material-icons-round ${i < event.importance ? 'text-yellow-500' : 'text-gray-300'}">star</i>`
+                        ).join('')}
+                    </div>
+                </div>
             `;
+            
+            this.eventDetailsElement.appendChild(detailsContent);
             
             // 添加关闭按钮事件
             const closeBtn = detailsContent.querySelector('.close-details-btn');

@@ -371,7 +371,7 @@ export class MapManager {
             fillColor: '#3b82f6',
             fillOpacity: 0.2,
             color: '#64748b',
-            weight: 1,
+                    weight: 1,
             opacity: 0.8
         };
         
@@ -678,6 +678,9 @@ export class MapManager {
             return;
         }
         
+        // 保存原始事件数据，供highlightEvent等方法使用
+        this.events = events;
+        
         // 获取与当前年份相关的事件
         const relevantEvents = this.getRelevantEvents(events, this.currentYear);
         console.log(`找到 ${relevantEvents.length} 个相关事件`);
@@ -709,7 +712,7 @@ export class MapManager {
                     coordinates: [event.coordinates[1], event.coordinates[0]] // 注意：GeoJSON使用[经度，纬度]
                 }
             };
-        }).filter(Boolean); // 过滤掉无效的特征
+        }).filter(Boolean);
         
         // 创建GeoJSON图层
         if (features.length > 0) {
@@ -784,27 +787,24 @@ export class MapManager {
         const properties = feature.properties;
         const category = properties.category || '其他';
         const importance = properties.importance || 1;
+        const eventId = properties.id || '';
         
-        // 根据类别选择图标
-        let icon = 'category';
-        switch (category) {
-            case '农业': icon = 'grass'; break;
-            case '技术': icon = 'precision_manufacturing'; break;
-            case '文明': icon = 'account_balance'; break;
-            case '征服': icon = 'gavel'; break;
-            case '疾病': icon = 'coronavirus'; break;
-            case '迁徙': icon = 'timeline'; break;
-        }
+        // 提取编号（去掉E前缀）
+        const eventNumber = eventId.replace('E', '');
         
         // 根据重要性选择尺寸和阴影
-        const iconSize = 16 + importance * 2;
+        const iconSize = 28 + importance * 3;
         const shadowBlur = 8 + importance * 2;
+        const fontSize = 14 + importance;
         
         // 构建HTML
         return `
             <div class="map-marker event-marker" data-event-id="${properties.id}">
                 <div class="marker-icon ${category}" style="width: ${iconSize}px; height: ${iconSize}px; box-shadow: 0 0 ${shadowBlur}px rgba(0, 0, 0, 0.3);">
-                    <i class="material-icons-round" style="font-size: ${iconSize * 0.6}px;">${icon}</i>
+                    <span style="font-size: ${fontSize}px; font-weight: 600;">${eventNumber}</span>
+                </div>
+                <div class="marker-label">
+                    <span>${properties.name}</span>
                 </div>
             </div>
         `;
@@ -1540,6 +1540,51 @@ export class MapManager {
             });
         } else {
             console.warn(`未找到事件ID为 ${eventId} 的标记`);
+            
+            // 尝试从数据中找到事件并动态创建标记
+            if (this.events && Array.isArray(this.events)) {
+                const event = this.events.find(e => e.id === eventId);
+                if (event && event.location && Array.isArray(event.location) && event.location.length >= 2) {
+                    console.log(`找到事件数据，正在创建临时标记: ${event.title}`);
+                    
+                    // 创建临时事件标记
+                    const tempFeature = {
+                        type: "Feature",
+                        properties: {
+                            id: event.id,
+                            title: event.title,
+                            year: event.year,
+                            endYear: event.endYear,
+                            description: event.description,
+                            category: event.category,
+                            importance: event.importance
+                        },
+                        geometry: {
+                            type: "Point",
+                            coordinates: [event.location[0], event.location[1]]
+                        }
+                    };
+                    
+                    // 添加临时标记
+                    const marker = this.createEventMarker(tempFeature);
+                    if (marker) {
+                        // 保存到事件标记列表
+                        this.eventMarkers.push(marker);
+                        
+                        // 高亮显示
+                        const latlng = marker.getLatLng();
+                        this.map.flyTo(latlng, Math.max(this.map.getZoom(), 5), {
+                            duration: 1.5,
+                            easeLinearity: 0.25
+                        });
+                        
+                        // 打开弹窗
+            marker.openPopup();
+        }
+                } else {
+                    console.error(`找不到事件数据或位置信息无效: ${eventId}`);
+                }
+            }
         }
     }
     
@@ -1811,5 +1856,52 @@ export class MapManager {
         
         console.log(`找到${activeMigrations.length}条活跃的迁徙路线`);
         return activeMigrations;
+    }
+    
+    /**
+     * 创建单个事件标记
+     * @param {Object} feature - GeoJSON特征
+     * @returns {Object} Leaflet标记对象
+     */
+    createEventMarker(feature) {
+        if (!feature || !feature.geometry || !feature.geometry.coordinates) {
+            console.error('特征缺少有效的坐标信息');
+            return null;
+        }
+        
+        // 创建标记位置
+        const latlng = L.latLng(
+            feature.geometry.coordinates[1], 
+            feature.geometry.coordinates[0]
+        );
+        
+        // 根据重要性调整标记大小
+        const importance = feature.properties.importance || 1;
+        const size = 24 + importance * 4;
+        
+        // 创建自定义HTML标记
+        const icon = L.divIcon({
+            className: 'custom-marker',
+            html: this.createEventMarkerHTML(feature),
+            iconSize: [size, size],
+            iconAnchor: [size/2, size/2],
+            popupAnchor: [0, -size/2 - 5]
+        });
+        
+        // 创建标记
+        const marker = L.marker(latlng, { 
+            icon: icon,
+            riseOnHover: true,
+            riseOffset: 300,
+            zIndexOffset: importance * 100
+        });
+        
+        // 添加气泡
+        marker.bindPopup(this.createEventPopupContent(feature));
+        
+        // 添加到地图
+        marker.addTo(this.map);
+        
+        return marker;
     }
 } 

@@ -35,54 +35,95 @@ export async function loadAllData() {
     console.log('开始加载所有数据文件...');
     
     try {
-        // 并行加载所有数据文件
-        const [
-            rawHistoryEvents,
-            rawMigrations,
-            rawTechnologicalDevelopments,
-            rawRegionalSpecies,
-            socialOrganizations,
-            speciesTechnologyRelations,
-            socialTechnologyRelations,
-            eventTechnologyRelations,
-            eventSpeciesRelations
-        ] = await Promise.all([
-            loadJSONData('historical_events.json'),
-            loadJSONData('human_migrations.json'),
-            loadJSONData('technological_developments.json'),
-            loadJSONData('regional_species.json'),
-            loadJSONData('social_organizations.json'),
-            loadJSONData('species_technology_relations.json'),
-            loadJSONData('social_technology_relations.json'),
-            loadJSONData('event_technology_relations.json'),
-            loadJSONData('event_species_relations.json')
-        ]);
+        // 先加载索引文件
+        const dataIndex = await loadJSONData('index.json');
+        let categories = [];
         
-        console.log('所有数据文件加载完成，开始适配数据格式');
-        
-        // 使用适配器转换数据格式
-        const historyEvents = adaptHistoricalEvents(rawHistoryEvents);
-        const migrations = adaptMigrations(rawMigrations);
-        const technologicalDevelopments = adaptTechnologies(rawTechnologicalDevelopments);
-        const regionalSpecies = adaptSpecies(rawRegionalSpecies);
-        
-        console.log('数据格式适配完成');
-        
-        // 返回包含所有数据的对象
-        return {
-            historyEvents,
-            migrations,
-            technologicalDevelopments,
-            regionalSpecies,
-            socialOrganizations,
-            speciesTechnologyRelations,
-            socialTechnologyRelations,
-            eventTechnologyRelations,
-            eventSpeciesRelations
-        };
+        // 如果成功加载了索引文件，则使用索引中的分类加载数据
+        if (dataIndex && dataIndex.categories) {
+            console.log('使用索引文件加载分类数据...');
+            categories = dataIndex.categories;
+            
+            // 加载所有分类数据文件
+            const categoryDataPromises = categories.map(category => 
+                loadJSONData(category.file)
+            );
+            
+            const categoryData = await Promise.all(categoryDataPromises);
+            
+            // 合并所有分类数据
+            let allEvents = [];
+            categoryData.forEach((data, index) => {
+                if (Array.isArray(data)) {
+                    console.log(`加载了${data.length}条${categories[index].name}类别的数据`);
+                    allEvents = allEvents.concat(data);
+                }
+            });
+            
+            console.log(`总共加载了${allEvents.length}条事件数据`);
+            
+            return {
+                historyEvents: allEvents,
+                categories: categories
+            };
+        } else {
+            // 如果未能加载索引文件，则回退到加载旧的数据文件
+            console.log('未能加载索引文件，回退到加载旧的数据格式...');
+            
+            // 并行加载所有数据文件
+            const [
+                rawHistoryEvents,
+                rawMigrations,
+                rawTechnologicalDevelopments,
+                rawRegionalSpecies,
+                socialOrganizations,
+                speciesTechnologyRelations,
+                socialTechnologyRelations,
+                eventTechnologyRelations,
+                eventSpeciesRelations
+            ] = await Promise.all([
+                loadJSONData('historical_events.json'),
+                loadJSONData('human_migrations.json'),
+                loadJSONData('technological_developments.json'),
+                loadJSONData('regional_species.json'),
+                loadJSONData('social_organizations.json'),
+                loadJSONData('species_technology_relations.json'),
+                loadJSONData('social_technology_relations.json'),
+                loadJSONData('event_technology_relations.json'),
+                loadJSONData('event_species_relations.json')
+            ]);
+            
+            console.log('所有数据文件加载完成，开始适配数据格式');
+            
+            // 使用适配器转换数据格式
+            const historyEvents = adaptHistoricalEvents(rawHistoryEvents);
+            const migrations = adaptMigrations(rawMigrations);
+            const technologicalDevelopments = adaptTechnologies(rawTechnologicalDevelopments);
+            const regionalSpecies = adaptSpecies(rawRegionalSpecies);
+            
+            console.log('数据格式适配完成');
+            
+            // 返回包含所有数据的对象
+            return {
+                historyEvents,
+                migrations,
+                technologicalDevelopments,
+                regionalSpecies,
+                socialOrganizations,
+                speciesTechnologyRelations,
+                socialTechnologyRelations,
+                eventTechnologyRelations,
+                eventSpeciesRelations
+            };
+        }
     } catch (error) {
-        console.error('加载数据文件时出错:', error);
-        throw error;
+        console.error('加载数据失败:', error);
+        return {
+            historyEvents: [],
+            migrations: [],
+            technologicalDevelopments: [],
+            regionalSpecies: []
+        };
     }
 }
 
@@ -91,8 +132,37 @@ export async function loadAllData() {
  * @returns {Promise} 包含历史事件数据的Promise
  */
 export async function loadHistoricalEvents() {
-    const rawEvents = await loadJSONData('historical_events.json');
-    return adaptHistoricalEvents(rawEvents);
+    try {
+        // 尝试加载索引文件
+        const dataIndex = await loadJSONData('index.json');
+        
+        if (dataIndex && dataIndex.categories) {
+            // 如果有索引文件，使用新的数据格式
+            // 加载所有分类数据文件
+            const categoryDataPromises = dataIndex.categories.map(category => 
+                loadJSONData(category.file)
+            );
+            
+            const categoryData = await Promise.all(categoryDataPromises);
+            
+            // 合并所有分类数据
+            let allEvents = [];
+            categoryData.forEach((data, index) => {
+                if (Array.isArray(data)) {
+                    allEvents = allEvents.concat(data);
+                }
+            });
+            
+            return allEvents;
+        } else {
+            // 回退到旧的加载方式
+            const rawEvents = await loadJSONData('historical_events.json');
+            return adaptHistoricalEvents(rawEvents);
+        }
+    } catch (error) {
+        console.error('加载历史事件数据失败:', error);
+        return [];
+    }
 }
 
 /**
@@ -145,12 +215,16 @@ export function getEventsForYear(events, year, range = 100) {
     
     return events.filter(event => {
         // 如果事件有开始和结束年份，检查当前年份是否在该范围内
-        if (event.year !== undefined && event.endYear !== undefined) {
+        if (event.startYear !== undefined && event.endYear !== undefined) {
+            return year >= event.startYear && year <= event.endYear;
+        } else if (event.year !== undefined && event.endYear !== undefined) {
             return year >= event.year && year <= event.endYear;
         }
         
         // 如果事件只有一个年份，检查与当前年份的差距是否在范围内
-        if (event.year !== undefined) {
+        if (event.startYear !== undefined) {
+            return Math.abs(event.startYear - year) <= range;
+        } else if (event.year !== undefined) {
             return Math.abs(event.year - year) <= range;
         }
         
@@ -252,4 +326,21 @@ export function sortEventsByYear(events, ascending = true) {
         const yearB = b.year || 0;
         return ascending ? yearA - yearB : yearB - yearA;
     });
+}
+
+/**
+ * 加载分类数据
+ * @returns {Promise} 包含分类数据的Promise
+ */
+export async function loadCategories() {
+    try {
+        const dataIndex = await loadJSONData('index.json');
+        if (dataIndex && dataIndex.categories) {
+            return dataIndex.categories;
+        }
+        return [];
+    } catch (error) {
+        console.error('加载分类数据失败:', error);
+        return [];
+    }
 }

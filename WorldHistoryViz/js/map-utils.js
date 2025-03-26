@@ -155,10 +155,10 @@ const MapUtils = {
             
             // 尝试多个可能的路径加载地图
             const possiblePaths = [
-                `${this.localHistoryMapPath}${mapData.file}`,  // 当前设置的路径
+                // `${this.localHistoryMapPath}${mapData.file}`,  // 当前设置的路径
                 `../historical-basemaps/geojson/${mapData.file}`, // 上一级目录
-                `./historical-basemaps/geojson/${mapData.file}`, // 当前目录
-                `/historical-basemaps/geojson/${mapData.file}`, // 根目录
+                // `./historical-basemaps/geojson/${mapData.file}`, // 当前目录
+                // `/historical-basemaps/geojson/${mapData.file}`, // 根目录
                 `/c:/Users/maoxi/AI-inferencecH/BookMap/historical-basemaps/geojson/${mapData.file}` // 绝对路径
             ];
             
