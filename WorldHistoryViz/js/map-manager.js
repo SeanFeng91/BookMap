@@ -889,10 +889,11 @@ export class MapManager {
             yearDisplay = `(${this.formatYear(startYear)})`;
         }
         
+        // 创建直接文字描边效果，没有白底方块
         return `
-            <div class="event-title-label">
-                <span class="event-title-text">${name}</span>
-                <span class="event-title-year">${yearDisplay}</span>
+            <div class="event-title-text-outline">
+                <span class="event-name">${name}</span>
+                <span class="event-year">${yearDisplay}</span>
             </div>
         `;
     }
@@ -934,7 +935,7 @@ export class MapManager {
         // 构建详情内容
         return `
             <div class="event-popup">
-                <h3 class="text-lg font-semibold text-gray-900">${properties.name}</h3>
+                <h3 class="text-lg font-semibold text-gray-900">${properties.title || properties.name}</h3>
                 
                 <div class="flex justify-between items-center text-sm text-gray-600 mt-1 mb-2">
                     <div>
@@ -950,15 +951,16 @@ export class MapManager {
                     ${properties.description || '无详细描述'}
                 </div>
                 
-                ${properties.historicalSignificance ? `
+                ${properties.impact ? `
                 <div class="mt-2 pt-2 border-t border-gray-200">
-                    <div class="text-xs font-medium text-gray-500">历史意义:</div>
-                    <div class="text-sm text-gray-600">${properties.historicalSignificance}</div>
+                    <div class="text-xs font-medium text-gray-500">历史影响:</div>
+                    <div class="text-sm text-gray-600">${properties.impact}</div>
                 </div>
                 ` : ''}
                 
                 <div class="mt-3 pt-2 border-t border-gray-200 text-right">
-                    <button class="view-details-btn text-xs text-blue-500 hover:text-blue-700" onclick="document.dispatchEvent(new CustomEvent('viewEventDetails', {detail: {eventId: '${properties.id}'}}))">
+                    <button class="view-details-btn text-xs text-blue-500 hover:text-blue-700" 
+                        onclick="document.dispatchEvent(new CustomEvent('viewEventDetails', {detail: {eventId: '${properties.id}'}}))">
                         查看完整详情
                     </button>
                 </div>

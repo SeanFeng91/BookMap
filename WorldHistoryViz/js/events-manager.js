@@ -364,7 +364,7 @@ export class EventsManager {
         
         // 调用回调
         if (this.eventSelectedCallback) {
-            this.eventSelectedCallback(event);
+            this.eventSelectedCallback(event.id);
         }
     }
     

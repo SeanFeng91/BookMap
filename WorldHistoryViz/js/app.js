@@ -177,8 +177,12 @@ class HistoryMapApp {
         
         // 监听地图事件详情查看
         document.addEventListener('viewEventDetails', (e) => {
-            if (e.detail && e.detail.eventId) {
-                this.handleViewEventDetails(e.detail.eventId);
+            if (e.detail) {
+                // 支持同时使用eventId或id
+                const eventId = e.detail.eventId || e.detail.id;
+                if (eventId) {
+                    this.handleViewEventDetails(eventId);
+                }
             }
         });
         
