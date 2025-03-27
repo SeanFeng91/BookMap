@@ -1,0 +1,12 @@
+name = "world-history-viz"
+main = "worker.js"
+compatibility_date = "2023-10-01"
+
+# 静态资源配置
+[site]
+bucket = "."
+entry-point = "."
+
+# 兼容性标志
+[build.upload]
+format = "service-worker" 

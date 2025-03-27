@@ -36,6 +36,30 @@ export class MapManager {
         this.currentGeoJSON = null;
         this.currentYear = 0;
         
+        // 国家/地区颜色
+        this.countryColors = {
+            empire: '#7c3aed',       // 帝国 - 紫色
+            kingdom: '#8b5cf6',      // 王国 - 亮紫色
+            civilization: '#6366f1',  // 文明 - 靛蓝色
+            tribe: '#4f46e5',        // 部落 - 蓝色
+            area: '#3b82f6',         // 一般区域 - 亮蓝色
+            nomadic: '#10b981',      // 游牧民族 - 绿色
+            default: '#64748b'       // 默认 - 灰色
+        };
+        
+        // 类别颜色
+        this.categoryColors = {
+            农业: '#10b981',    // 绿色
+            技术: '#3b82f6',    // 蓝色
+            文明: '#8b5cf6',    // 紫色
+            征服: '#ef4444',    // 红色
+            疾病: '#f59e0b',    // 黄色
+            迁徙: '#7c3aed',    // 深紫色
+            物种: '#14b8a6',    // 青绿色
+            战争: '#dc2626',    // 深红色
+            default: '#6b7280'  // 灰色
+        };
+        
         // 图层组
         this.geojsonLayer = null;
         this.markersLayer = null;
@@ -45,6 +69,9 @@ export class MapManager {
         this.technologiesLayer = null;
         this.speciesLayer = null;
         this.organizationsLayer = null;
+        this.warsLayer = null;
+        this.diseasesLayer = null;
+        this.agricultureLayer = null;
         
         // 标记引用
         this.eventMarkers = [];
@@ -55,6 +82,9 @@ export class MapManager {
         this.labels = [];
         this.labelNames = new Set();
         this.events = [];
+        this.warMarkers = [];
+        this.diseaseMarkers = [];
+        this.agricultureMarkers = [];
         
         // 显示控制
         this.showEvents = true;
@@ -62,6 +92,9 @@ export class MapManager {
         this.showTechnologies = false;
         this.showSpecies = false;
         this.showOrganizations = false;
+        this.showWars = false;
+        this.showDiseases = false;
+        this.showAgriculture = false;
         
         // 类别筛选
         this.filterCategory = 'all';
@@ -189,6 +222,9 @@ export class MapManager {
         this.technologiesLayer = L.layerGroup().addTo(this.map);
         this.speciesLayer = L.layerGroup().addTo(this.map);
         this.organizationsLayer = L.layerGroup().addTo(this.map);
+        this.warsLayer = L.layerGroup().addTo(this.map);
+        this.diseasesLayer = L.layerGroup().addTo(this.map);
+        this.agricultureLayer = L.layerGroup().addTo(this.map);
         
         // 重新初始化数组以确保清空
         this.eventMarkers = [];
@@ -198,6 +234,9 @@ export class MapManager {
         this.highlightedElements = [];
         this.labels = [];
         this.labelNames = new Set();
+        this.warMarkers = [];
+        this.diseaseMarkers = [];
+        this.agricultureMarkers = [];
         
         // 添加GeoJSON区域边界
         this.loadGeoJSON();
@@ -245,8 +284,8 @@ export class MapManager {
             this.updateGeoJSONLayer();
             
             // 如果有事件数据且启用了事件显示，则更新事件标记
-            if (data.historyEvents && this.showEvents) {
-                this.updateEventMarkers(data.historyEvents);
+            if (data.allEvents && this.showEvents) {
+                this.updateEventMarkers(data.allEvents);
             }
             
             // 如果有迁徙数据且启用了迁徙显示，则更新迁徙路线
@@ -255,18 +294,33 @@ export class MapManager {
             }
             
             // 如果有技术发展数据且启用了技术显示，则更新技术标记
-            if (data.technologicalDevelopments && this.showTechnologies) {
-                this.updateTechnologicalDevelopments(data.technologicalDevelopments);
+            if (data.technologies && this.showTechnologies) {
+                this.updateTechnologicalDevelopments(data.technologies);
             }
             
             // 如果有物种数据且启用了物种显示，则更新物种标记
-            if (data.regionalSpecies && this.showSpecies) {
-                this.updateRegionalSpecies(data.regionalSpecies);
+            if (data.species && this.showSpecies) {
+                this.updateRegionalSpecies(data.species);
             }
             
-            // 如果有社会组织数据且启用了社会组织显示，则更新社会组织标记
-            if (data.socialOrganizations && this.showOrganizations) {
-                this.updateSocialOrganizations(data.socialOrganizations);
+            // 如果有文明数据且启用了社会组织显示，则更新社会组织标记
+            if (data.civilizations && this.showOrganizations) {
+                this.updateSocialOrganizations(data.civilizations);
+            }
+            
+            // 如果有战争数据且启用了战争显示，则更新战争标记
+            if (data.wars && this.showWars) {
+                this.updateWars(data.wars);
+            }
+            
+            // 如果有疾病数据且启用了疾病显示，则更新疾病标记
+            if (data.diseases && this.showDiseases) {
+                this.updateDiseases(data.diseases);
+            }
+            
+            // 如果有农业数据且启用了农业显示，则更新农业标记
+            if (data.agriculture && this.showAgriculture) {
+                this.updateAgriculture(data.agriculture);
             }
             
             // 隐藏加载中指示器
@@ -1348,10 +1402,16 @@ export class MapManager {
         
         // 获取与当前年份相关的社会组织
         const relevantOrganizations = organizations.filter(org => {
-            // 判断组织是否在当前时间范围内
+            // 检查是否是新格式
+            if (org.startYear !== undefined) {
+                return this.isTimeRangeRelevant(org.startYear, org.endYear || org.startYear, this.currentYear);
+            }
+            
+            // 旧格式处理
             if (org.形成时间) {
                 return this.isTimeRelevant(this.parseYearString(org.形成时间), this.currentYear);
             }
+            
             return false;
         });
         
@@ -1362,6 +1422,45 @@ export class MapManager {
         
         // 添加社会组织标记
         relevantOrganizations.forEach(org => {
+            // 处理新格式
+            if (org.location) {
+                let lat, lng;
+                
+                // 检查 location 格式
+                if (org.location.lat !== undefined && org.location.lng !== undefined) {
+                    lat = org.location.lat;
+                    lng = org.location.lng;
+                } else if (Array.isArray(org.location) && org.location.length === 2) {
+                    lng = org.location[0]; // GeoJSON 格式 [lng, lat]
+                    lat = org.location[1];
+                }
+                
+                if (lat !== undefined && lng !== undefined) {
+                    // 创建社会组织图标
+                    const marker = this.createCustomMarker(
+                        [lat, lng],
+                        '文明',
+                        org.title || org.name || '未命名文明'
+                    );
+                    
+                    // 添加弹出框
+                    marker.bindPopup(`
+                        <div class="popup-content">
+                            <h3 class="text-lg font-bold">${org.title || org.name || '未命名文明'}</h3>
+                            <p class="text-sm text-gray-600">时期: ${this.formatYear(org.startYear)} - ${this.formatYear(org.endYear || org.startYear)}</p>
+                            <p class="mt-2">类型: ${org.category || org.type || '未知'}</p>
+                            <p>地区: ${org.region || '未知'}</p>
+                            <p class="mt-2">${org.description || ''}</p>
+                        </div>
+                    `);
+                    
+                    // 添加到社会组织图层
+                    this.organizationsLayer.addLayer(marker);
+                }
+                return;
+            }
+            
+            // 处理旧格式
             if (org.中心位置 && org.中心位置.coordinates) {
                 const coordinates = org.中心位置.coordinates;
                 // 创建社会组织图标
@@ -2030,5 +2129,340 @@ export class MapManager {
                 }
             }
         }, 3000);
+    }
+    
+    /**
+     * 更新战争数据
+     * @param {Array} wars - 战争数据数组
+     */
+    updateWars(wars) {
+        console.log(`更新战争数据，当前年份: ${this.currentYear}`);
+        
+        // 清除现有战争标记
+        this.clearWarMarkers();
+        
+        if (!wars || !Array.isArray(wars)) {
+            console.warn('战争数据无效或为空');
+            return;
+        }
+        
+        // 获取当前年份相关的战争
+        const relevantWars = wars.filter(war => {
+            return this.isTimeRangeRelevant(war.startYear, war.endYear, this.currentYear);
+        });
+        
+        console.log(`找到 ${relevantWars.length} 个相关战争`);
+        
+        // 应用类别筛选
+        let filteredWars = relevantWars;
+        if (this.filterCategory !== 'all') {
+            filteredWars = relevantWars.filter(war => war.category === this.filterCategory);
+            console.log(`应用类别筛选后剩余 ${filteredWars.length} 个战争`);
+        }
+        
+        // 为每个战争创建标记
+        filteredWars.forEach(war => {
+            if (war.location && war.location.length === 2) {
+                const [lng, lat] = war.location;
+                const marker = this.createCustomMarker([lat, lng], 'war', war.title);
+                
+                // 创建弹出窗口内容
+                const popupContent = this.createWarPopupContent(war);
+                marker.bindPopup(popupContent);
+                
+                // 设置交互事件
+                marker.on('mouseover', function() {
+                    this.openPopup();
+                });
+                
+                // 添加到战争图层
+                marker.addTo(this.warsLayer);
+                
+                // 保存引用以便后续清除
+                this.warMarkers.push(marker);
+            }
+        });
+        
+        console.log('战争数据更新完成');
+    }
+    
+    /**
+     * 更新疾病数据
+     * @param {Array} diseases - 疾病数据数组
+     */
+    updateDiseases(diseases) {
+        console.log(`更新疾病数据，当前年份: ${this.currentYear}`);
+        
+        // 清除现有疾病标记
+        this.clearDiseaseMarkers();
+        
+        if (!diseases || !Array.isArray(diseases)) {
+            console.warn('疾病数据无效或为空');
+            return;
+        }
+        
+        // 获取当前年份相关的疾病
+        const relevantDiseases = diseases.filter(disease => {
+            return this.isTimeRangeRelevant(disease.startYear, disease.endYear, this.currentYear);
+        });
+        
+        console.log(`找到 ${relevantDiseases.length} 个相关疾病`);
+        
+        // 应用类别筛选
+        let filteredDiseases = relevantDiseases;
+        if (this.filterCategory !== 'all') {
+            filteredDiseases = relevantDiseases.filter(disease => disease.category === this.filterCategory);
+            console.log(`应用类别筛选后剩余 ${filteredDiseases.length} 个疾病`);
+        }
+        
+        // 为每个疾病创建标记
+        filteredDiseases.forEach(disease => {
+            if (disease.location && disease.location.length === 2) {
+                const [lng, lat] = disease.location;
+                const marker = this.createCustomMarker([lat, lng], 'disease', disease.title);
+                
+                // 创建弹出窗口内容
+                const popupContent = this.createDiseasePopupContent(disease);
+                marker.bindPopup(popupContent);
+                
+                // 设置交互事件
+                marker.on('mouseover', function() {
+                    this.openPopup();
+                });
+                
+                // 添加到疾病图层
+                marker.addTo(this.diseasesLayer);
+                
+                // 保存引用以便后续清除
+                this.diseaseMarkers.push(marker);
+            }
+        });
+        
+        console.log('疾病数据更新完成');
+    }
+    
+    /**
+     * 更新农业数据
+     * @param {Array} agriculture - 农业数据数组
+     */
+    updateAgriculture(agriculture) {
+        console.log(`更新农业数据，当前年份: ${this.currentYear}`);
+        
+        // 清除现有农业标记
+        this.clearAgricultureMarkers();
+        
+        if (!agriculture || !Array.isArray(agriculture)) {
+            console.warn('农业数据无效或为空');
+            return;
+        }
+        
+        // 获取当前年份相关的农业
+        const relevantAgriculture = agriculture.filter(agri => {
+            return this.isTimeRangeRelevant(agri.startYear, agri.endYear, this.currentYear);
+        });
+        
+        console.log(`找到 ${relevantAgriculture.length} 个相关农业发展`);
+        
+        // 应用类别筛选
+        let filteredAgriculture = relevantAgriculture;
+        if (this.filterCategory !== 'all') {
+            filteredAgriculture = relevantAgriculture.filter(agri => agri.category === this.filterCategory);
+            console.log(`应用类别筛选后剩余 ${filteredAgriculture.length} 个农业发展`);
+        }
+        
+        // 为每个农业发展创建标记
+        filteredAgriculture.forEach(agri => {
+            if (agri.location && agri.location.length === 2) {
+                const [lng, lat] = agri.location;
+                const marker = this.createCustomMarker([lat, lng], 'agriculture', agri.title);
+                
+                // 创建弹出窗口内容
+                const popupContent = this.createAgriculturePopupContent(agri);
+                marker.bindPopup(popupContent);
+                
+                // 设置交互事件
+                marker.on('mouseover', function() {
+                    this.openPopup();
+                });
+                
+                // 添加到农业图层
+                marker.addTo(this.agricultureLayer);
+                
+                // 保存引用以便后续清除
+                this.agricultureMarkers.push(marker);
+            }
+        });
+        
+        console.log('农业数据更新完成');
+    }
+    
+    /**
+     * 创建战争弹出窗口内容
+     * @param {Object} war - 战争对象
+     * @returns {string} HTML内容
+     */
+    createWarPopupContent(war) {
+        const formatYearLocal = (year) => {
+            return year < 0 ? `公元前${Math.abs(year)}年` : `公元${year}年`;
+        };
+
+        return `
+            <div class="popup-content">
+                <h3>${war.title}</h3>
+                <p class="time">${formatYearLocal(war.startYear)} - ${formatYearLocal(war.endYear)}</p>
+                <p class="description">${war.description}</p>
+                <div class="details">
+                    <p><strong>参与方:</strong> ${war.participants || '未知'}</p>
+                    <p><strong>结果:</strong> ${war.result || '未知'}</p>
+                    <p><strong>伤亡:</strong> ${war.casualties || '未知'}</p>
+                    <p><strong>重要性:</strong> ${war.importance || 3}/5</p>
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * 创建疾病弹出窗口内容
+     * @param {Object} disease - 疾病对象
+     * @returns {string} HTML内容
+     */
+    createDiseasePopupContent(disease) {
+        const formatYearLocal = (year) => {
+            return year < 0 ? `公元前${Math.abs(year)}年` : `公元${year}年`;
+        };
+
+        return `
+            <div class="popup-content">
+                <h3>${disease.title}</h3>
+                <p class="time">${formatYearLocal(disease.startYear)} - ${formatYearLocal(disease.endYear)}</p>
+                <p class="description">${disease.description}</p>
+                <div class="details">
+                    <p><strong>病原体:</strong> ${disease.pathogen || '未知'}</p>
+                    <p><strong>传播方式:</strong> ${disease.transmission || '未知'}</p>
+                    <p><strong>影响范围:</strong> ${disease.affectedRegion || '未知'}</p>
+                    <p><strong>死亡率:</strong> ${disease.mortalityRate || '未知'}</p>
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * 创建农业弹出窗口内容
+     * @param {Object} agriculture - 农业对象
+     * @returns {string} HTML内容
+     */
+    createAgriculturePopupContent(agriculture) {
+        const formatYearLocal = (year) => {
+            return year < 0 ? `公元前${Math.abs(year)}年` : `公元${year}年`;
+        };
+
+        return `
+            <div class="popup-content">
+                <h3>${agriculture.title}</h3>
+                <p class="time">${formatYearLocal(agriculture.startYear)}</p>
+                <p class="description">${agriculture.description}</p>
+                <div class="details">
+                    <p><strong>作物:</strong> ${agriculture.crops || '未知'}</p>
+                    <p><strong>技术:</strong> ${agriculture.techniques || '未知'}</p>
+                    <p><strong>影响:</strong> ${agriculture.impact || '未知'}</p>
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * 清除战争标记
+     */
+    clearWarMarkers() {
+        // 清除所有已保存的战争标记
+        if (this.warMarkers && this.warMarkers.length > 0) {
+            this.warMarkers.forEach(marker => {
+                if (marker) {
+                    this.warsLayer.removeLayer(marker);
+                }
+            });
+        }
+        
+        this.warMarkers = [];
+    }
+    
+    /**
+     * 清除疾病标记
+     */
+    clearDiseaseMarkers() {
+        // 清除所有已保存的疾病标记
+        if (this.diseaseMarkers && this.diseaseMarkers.length > 0) {
+            this.diseaseMarkers.forEach(marker => {
+                if (marker) {
+                    this.diseasesLayer.removeLayer(marker);
+                }
+            });
+        }
+        
+        this.diseaseMarkers = [];
+    }
+    
+    /**
+     * 清除农业标记
+     */
+    clearAgricultureMarkers() {
+        // 清除所有已保存的农业标记
+        if (this.agricultureMarkers && this.agricultureMarkers.length > 0) {
+            this.agricultureMarkers.forEach(marker => {
+                if (marker) {
+                    this.agricultureLayer.removeLayer(marker);
+                }
+            });
+        }
+        
+        this.agricultureMarkers = [];
+    }
+    
+    /**
+     * 切换战争显示
+     * @param {boolean} show - 是否显示
+     */
+    toggleWars(show) {
+        this.showWars = show;
+        
+        if (show) {
+            this.map.addLayer(this.warsLayer);
+        } else {
+            this.map.removeLayer(this.warsLayer);
+        }
+        
+        console.log(`战争显示: ${show ? '开启' : '关闭'}`);
+    }
+    
+    /**
+     * 切换疾病显示
+     * @param {boolean} show - 是否显示
+     */
+    toggleDiseases(show) {
+        this.showDiseases = show;
+        
+        if (show) {
+            this.map.addLayer(this.diseasesLayer);
+        } else {
+            this.map.removeLayer(this.diseasesLayer);
+        }
+        
+        console.log(`疾病显示: ${show ? '开启' : '关闭'}`);
+    }
+    
+    /**
+     * 切换农业显示
+     * @param {boolean} show - 是否显示
+     */
+    toggleAgriculture(show) {
+        this.showAgriculture = show;
+        
+        if (show) {
+            this.map.addLayer(this.agricultureLayer);
+        } else {
+            this.map.removeLayer(this.agricultureLayer);
+        }
+        
+        console.log(`农业显示: ${show ? '开启' : '关闭'}`);
     }
 } 

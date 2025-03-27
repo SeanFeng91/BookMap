@@ -68,7 +68,7 @@ const MapUtils = {
     /**
      * 本地历史地图路径
      */
-    localHistoryMapPath: './historical-basemaps/geojson/',
+    localHistoryMapPath: './maps/geojson/',
     
     /**
      * 查找最接近指定年份的地图数据文件
@@ -155,11 +155,10 @@ const MapUtils = {
             
             // 尝试多个可能的路径加载地图
             const possiblePaths = [
-                // `${this.localHistoryMapPath}${mapData.file}`,  // 当前设置的路径
-                `../historical-basemaps/geojson/${mapData.file}`, // 上一级目录
-                // `./historical-basemaps/geojson/${mapData.file}`, // 当前目录
-                // `/historical-basemaps/geojson/${mapData.file}`, // 根目录
-                `/c:/Users/maoxi/AI-inferencecH/BookMap/historical-basemaps/geojson/${mapData.file}` // 绝对路径
+                `${this.localHistoryMapPath}${mapData.file}`, // 配置的相对路径
+                `./maps/geojson/${mapData.file}`,            // 相对于当前目录
+                `./historical-basemaps/geojson/${mapData.file}`, // 备用相对路径
+                `/maps/geojson/${mapData.file}`              // 根目录下的路径
             ];
             
             let data = null;
@@ -198,43 +197,52 @@ const MapUtils = {
     /**
      * 加载备用地图
      * @param {string} fileName - 原始文件名
-     * @returns {Promise} 返回替代地图数据
+     * @returns {Promise} 返回解析后的GeoJSON数据的Promise
      */
     loadFallbackMap: async function() {
-        console.log('加载备用世界地图');
+        console.log('尝试加载备用地图数据');
         
-        // 尝试多个可能的备用地图路径
-        const fallbackPaths = [
-            './data/world.geojson',
-            './historical-basemaps/geojson/world_2000.geojson',
-            './historical-basemaps/geojson/world_1994.geojson',
-            '../historical-basemaps/geojson/world_2000.geojson',
-            '/historical-basemaps/geojson/world_2000.geojson'
-        ];
+        // 尝试加载不同年份的地图
+        const fallbackYears = [1950, 2000, 1900, 1800, 0];
         
-        // 尝试每个备用路径
-        for (const path of fallbackPaths) {
+        for (const year of fallbackYears) {
             try {
-                console.log(`尝试从备用路径加载地图: ${path}`);
-                const response = await fetch(path);
+                const mapData = this.findClosestMapFile(year);
                 
-                if (!response.ok) {
-                    console.warn(`无法从备用路径加载: ${path}, 状态: ${response.status}`);
-                    continue;
+                // 尝试不同的路径
+                const possiblePaths = [
+                    `${this.localHistoryMapPath}${mapData.file}`, // 配置的相对路径
+                    `./maps/geojson/${mapData.file}`,            // 相对于当前目录
+                    `./historical-basemaps/geojson/${mapData.file}`, // 备用相对路径
+                    `/maps/geojson/${mapData.file}`              // 根目录下的路径
+                ];
+                
+                for (const path of possiblePaths) {
+                    try {
+                        console.log(`尝试从备用路径加载地图: ${path}`);
+                        const data = await this.loadGeoJSON(path);
+                        
+                        if (data && data.features && data.features.length > 0) {
+                            console.log(`成功从备用路径加载地图: ${path}`);
+                            return data;
+                        }
+                    } catch (error) {
+                        console.warn(`从备用路径 ${path} 加载失败:`, error.message);
+                        // 继续尝试下一条路径
+                    }
                 }
-                
-                const data = await response.json();
-                console.log(`成功从备用路径加载地图: ${path}, 包含 ${data.features ? data.features.length : '未知数量'} 个特征`);
-                return data;
             } catch (error) {
-                console.warn(`从备用路径 ${path} 加载失败:`, error.message);
-                // 继续尝试下一个路径
+                console.warn(`备用年份 ${year} 加载失败:`, error.message);
+                // 继续尝试下一个备用年份
             }
         }
         
-        // 如果所有备用尝试都失败，返回一个最简单的默认地图
-        console.error('所有备用地图加载尝试均失败，返回默认世界边界');
-        return this.getDefaultWorldMap();
+        console.error('所有备用地图加载失败，返回空GeoJSON数据');
+        // 返回一个空的GeoJSON作为最后的备用
+        return {
+            type: 'FeatureCollection',
+            features: []
+        };
     },
     
     /**

@@ -13,7 +13,8 @@ import { adaptHistoricalEvents, adaptMigrations, adaptTechnologies, adaptSpecies
 async function loadJSONData(filename) {
     console.log(`正在加载数据文件：${filename}`);
     try {
-        const response = await fetch(`/WorldHistoryViz/data/${filename}`);
+        // 使用相对路径加载数据文件，适应不同部署环境
+        const response = await fetch(`./data/${filename}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -37,45 +38,37 @@ export async function loadAllData() {
         console.log('开始加载所有数据...');
         
         const [
-            historyEvents,
+            allEvents,
             migrations,
-            technologicalDevelopments,
-            regionalSpecies,
-            socialOrganizations
+            technologies,
+            species,
+            civilizations,
+            wars,
+            diseases,
+            agriculture
         ] = await Promise.all([
-            loadHistoryEvents(),
+            loadAllEvents(),
             loadMigrations(),
-            loadTechnologicalDevelopments(),
-            loadRegionalSpecies(),
-            loadSocialOrganizations()
+            loadTechnologies(),
+            loadSpecies(),
+            loadCivilizations(),
+            loadWars(),
+            loadDiseases(),
+            loadAgriculture()
         ]);
         
         console.log('所有数据加载完成');
-        console.log(`加载了 ${migrations.length} 条迁徙路线数据`);
-        
-        // 记录迁徙数据的前几条，以便调试
-        if (migrations.length > 0) {
-            console.log('迁徙数据示例:');
-            migrations.slice(0, 3).forEach((m, i) => {
-                console.log(`迁徙 #${i}:`, {
-                    name: m.name,
-                    startYear: m.startYear,
-                    endYear: m.endYear,
-                    startCoordinates: m.startCoordinates,
-                    endCoordinates: m.endCoordinates
-                });
-            });
-        } else {
-            console.warn('没有加载到任何迁徙数据!');
-        }
         
         // 返回所有数据
         return {
-            historyEvents,
-            migrations,
-            technologicalDevelopments,
-            regionalSpecies,
-            socialOrganizations
+            allEvents,
+            migrations: adaptMigrations(migrations),
+            technologies: adaptTechnologies(technologies),
+            species: adaptSpecies(species),
+            civilizations,
+            wars,
+            diseases,
+            agriculture
         };
     } catch (error) {
         console.error('加载数据时出错:', error);
@@ -84,22 +77,11 @@ export async function loadAllData() {
 }
 
 /**
- * 加载历史事件数据
+ * 加载所有历史事件数据
  * @returns {Promise<Array>} 历史事件数组
  */
-async function loadHistoryEvents() {
-    try {
-        const response = await fetch('./data/historical_events.json');
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        console.log(`加载了 ${data.length} 条历史事件数据`);
-        return data;
-    } catch (error) {
-        console.error('加载历史事件数据时出错:', error);
-        return [];
-    }
+async function loadAllEvents() {
+    return loadJSONData('all_events.json');
 }
 
 /**
@@ -107,75 +89,55 @@ async function loadHistoryEvents() {
  * @returns {Promise<Array>} 迁徙数据数组
  */
 async function loadMigrations() {
-    try {
-        const response = await fetch('./data/migrations.json');
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        console.log(`加载了 ${data.length} 条迁徙数据`);
-        return data;
-    } catch (error) {
-        console.error('加载迁徙数据时出错:', error);
-        return [];
-    }
+    return loadJSONData('migrations.json');
 }
 
 /**
  * 加载技术发展数据
  * @returns {Promise<Array>} 技术发展数据数组
  */
-async function loadTechnologicalDevelopments() {
-    try {
-        const response = await fetch('./data/technological_developments.json');
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        console.log(`加载了 ${data.length} 条技术发展数据`);
-        return data;
-    } catch (error) {
-        console.error('加载技术发展数据时出错:', error);
-        return [];
-    }
+async function loadTechnologies() {
+    return loadJSONData('technologies.json');
 }
 
 /**
- * 加载区域物种数据
- * @returns {Promise<Array>} 区域物种数据数组
+ * 加载物种数据
+ * @returns {Promise<Array>} 物种数据数组
  */
-async function loadRegionalSpecies() {
-    try {
-        const response = await fetch('./data/regional_species.json');
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        console.log(`加载了 ${data.length} 条区域物种数据`);
-        return data;
-    } catch (error) {
-        console.error('加载区域物种数据时出错:', error);
-        return [];
-    }
+async function loadSpecies() {
+    return loadJSONData('species.json');
 }
 
 /**
- * 加载社会组织数据
- * @returns {Promise<Array>} 社会组织数据数组
+ * 加载文明数据
+ * @returns {Promise<Array>} 文明数据数组
  */
-async function loadSocialOrganizations() {
-    try {
-        const response = await fetch('./data/social_organizations.json');
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        console.log(`加载了 ${data.length} 条社会组织数据`);
-        return data;
-    } catch (error) {
-        console.error('加载社会组织数据时出错:', error);
-        return [];
-    }
+async function loadCivilizations() {
+    return loadJSONData('civilizations.json');
+}
+
+/**
+ * 加载战争数据
+ * @returns {Promise<Array>} 战争数据数组
+ */
+async function loadWars() {
+    return loadJSONData('wars.json');
+}
+
+/**
+ * 加载疾病数据
+ * @returns {Promise<Array>} 疾病数据数组
+ */
+async function loadDiseases() {
+    return loadJSONData('diseases.json');
+}
+
+/**
+ * 加载农业数据
+ * @returns {Promise<Array>} 农业数据数组
+ */
+async function loadAgriculture() {
+    return loadJSONData('agriculture.json');
 }
 
 /**

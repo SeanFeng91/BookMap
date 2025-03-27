@@ -46,6 +46,11 @@ class HistoryMapApp {
         this.handleEventSelected = this.handleEventSelected.bind(this);
         this.handleToggleEvents = this.handleToggleEvents.bind(this);
         this.handleToggleMigrations = this.handleToggleMigrations.bind(this);
+        this.handleToggleTechnologies = this.handleToggleTechnologies.bind(this);
+        this.handleToggleSpecies = this.handleToggleSpecies.bind(this);
+        this.handleToggleWars = this.handleToggleWars.bind(this);
+        this.handleToggleDiseases = this.handleToggleDiseases.bind(this);
+        this.handleToggleAgriculture = this.handleToggleAgriculture.bind(this);
         this.handleViewEventDetails = this.handleViewEventDetails.bind(this);
         this.toggleSidebar = this.toggleSidebar.bind(this);
     }
@@ -168,6 +173,36 @@ class HistoryMapApp {
             toggleMigrationsBtn.addEventListener('click', this.handleToggleMigrations);
         }
         
+        // 切换技术发展按钮
+        const toggleTechnologiesBtn = document.getElementById('toggle-technologies');
+        if (toggleTechnologiesBtn) {
+            toggleTechnologiesBtn.addEventListener('click', this.handleToggleTechnologies);
+        }
+        
+        // 切换物种按钮
+        const toggleSpeciesBtn = document.getElementById('toggle-species');
+        if (toggleSpeciesBtn) {
+            toggleSpeciesBtn.addEventListener('click', this.handleToggleSpecies);
+        }
+        
+        // 切换战争按钮
+        const toggleWarsBtn = document.getElementById('toggle-wars');
+        if (toggleWarsBtn) {
+            toggleWarsBtn.addEventListener('click', this.handleToggleWars);
+        }
+        
+        // 切换疾病按钮
+        const toggleDiseasesBtn = document.getElementById('toggle-diseases');
+        if (toggleDiseasesBtn) {
+            toggleDiseasesBtn.addEventListener('click', this.handleToggleDiseases);
+        }
+        
+        // 切换农业按钮
+        const toggleAgricultureBtn = document.getElementById('toggle-agriculture');
+        if (toggleAgricultureBtn) {
+            toggleAgricultureBtn.addEventListener('click', this.handleToggleAgriculture);
+        }
+        
         // 帮助按钮
         const helpButton = document.getElementById('help-button');
         if (helpButton) {
@@ -239,14 +274,18 @@ class HistoryMapApp {
             this.data = await loadAllData();
             
             // 初始化事件管理器
-            this.eventsManager.updateEventsList(this.data.historyEvents, this.timelineManager.getCurrentYear());
+            this.eventsManager.updateEventsList(this.data.allEvents, this.timelineManager.getCurrentYear());
             
             // 验证数据是否正确加载
             console.log('数据加载状态：', {
-                '历史事件': this.data.historyEvents?.length || 0,
+                '历史事件': this.data.allEvents?.length || 0,
                 '迁徙路线': this.data.migrations?.length || 0,
-                '技术发展': this.data.technologicalDevelopments?.length || 0,
-                '区域物种': this.data.regionalSpecies?.length || 0
+                '技术发展': this.data.technologies?.length || 0,
+                '物种': this.data.species?.length || 0,
+                '文明': this.data.civilizations?.length || 0,
+                '战争': this.data.wars?.length || 0,
+                '疾病': this.data.diseases?.length || 0,
+                '农业': this.data.agriculture?.length || 0
             });
             
             this.isLoading = false;
@@ -287,7 +326,7 @@ class HistoryMapApp {
             await this.mapManager.updateToYear(year, this.data);
             
             // 更新事件列表
-            this.eventsManager.updateEventsList(this.data.historyEvents, year);
+            this.eventsManager.updateEventsList(this.data.allEvents, year);
         } catch (error) {
             console.error('处理年份变化时出错:', error);
         }
@@ -310,7 +349,7 @@ class HistoryMapApp {
         console.log(`查看事件详情: ${eventId}`);
         
         // 找到对应的事件
-        const event = this.data.historyEvents.find(e => e.id === eventId);
+        const event = this.data.allEvents.find(e => e.id === eventId);
         if (!event) {
             console.warn(`未找到ID为 ${eventId} 的事件`);
             return;
@@ -351,6 +390,71 @@ class HistoryMapApp {
         
         if (e.currentTarget) {
             e.currentTarget.classList.toggle('active', showMigrations);
+        }
+    }
+    
+    /**
+     * 处理切换技术发展显示
+     * @param {Event} e - 事件对象
+     */
+    handleToggleTechnologies(e) {
+        const showTechnologies = !e.currentTarget.classList.contains('active');
+        this.mapManager.toggleTechnologies(showTechnologies);
+        
+        if (e.currentTarget) {
+            e.currentTarget.classList.toggle('active', showTechnologies);
+        }
+    }
+    
+    /**
+     * 处理切换物种显示
+     * @param {Event} e - 事件对象
+     */
+    handleToggleSpecies(e) {
+        const showSpecies = !e.currentTarget.classList.contains('active');
+        this.mapManager.toggleSpecies(showSpecies);
+        
+        if (e.currentTarget) {
+            e.currentTarget.classList.toggle('active', showSpecies);
+        }
+    }
+    
+    /**
+     * 处理切换战争显示
+     * @param {Event} e - 事件对象
+     */
+    handleToggleWars(e) {
+        const showWars = !e.currentTarget.classList.contains('active');
+        this.mapManager.toggleWars(showWars);
+        
+        if (e.currentTarget) {
+            e.currentTarget.classList.toggle('active', showWars);
+        }
+    }
+    
+    /**
+     * 处理切换疾病显示
+     * @param {Event} e - 事件对象
+     */
+    handleToggleDiseases(e) {
+        const showDiseases = !e.currentTarget.classList.contains('active');
+        this.mapManager.toggleDiseases(showDiseases);
+        
+        if (e.currentTarget) {
+            e.currentTarget.classList.toggle('active', showDiseases);
+        }
+    }
+    
+    /**
+     * 处理切换农业显示
+     * @param {Event} e - 事件对象
+     */
+    handleToggleAgriculture(e) {
+        const showAgriculture = !e.currentTarget.classList.contains('active');
+        this.mapManager.toggleAgriculture(showAgriculture);
+        
+        if (e.currentTarget) {
+            e.currentTarget.classList.toggle('active', showAgriculture);
         }
     }
     
@@ -412,7 +516,7 @@ class HistoryMapApp {
                     // 重新加载当前年份的全部数据，确保筛选正确应用
                     const currentYear = this.timelineManager.getCurrentYear();
                     // 更新事件列表
-                    this.eventsManager.updateEventsList(this.data.historyEvents, currentYear);
+                    this.eventsManager.updateEventsList(this.data.allEvents, currentYear);
                     // 重新更新地图内容
                     this.mapManager.updateToYear(currentYear, this.data);
                     

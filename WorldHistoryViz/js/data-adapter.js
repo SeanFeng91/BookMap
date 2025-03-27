@@ -191,6 +191,42 @@ export function adaptSpecies(species) {
     }
     
     return species.map(s => {
+        // 处理新的数据格式
+        // 检查是否是新格式数据
+        if (s.title && s.startYear !== undefined) {
+            // 确保位置数据格式正确
+            let location = [0, 0]; // 默认位置
+            if (s.location) {
+                if (s.location.lng !== undefined && s.location.lat !== undefined) {
+                    location = [s.location.lng, s.location.lat];
+                } else if (Array.isArray(s.location) && s.location.length === 2) {
+                    location = s.location;
+                }
+            }
+            
+            return {
+                id: s.id || `species-${Math.random().toString(36).substr(2, 9)}`,
+                title: s.title,
+                scientificName: s.scientificName || '',
+                year: s.startYear,
+                endYear: s.endYear || s.startYear,
+                type: s.category || '物种',
+                location: location,
+                domesticationStatus: s.domesticationStatus || '',
+                distribution: s.region || s.distribution || '',
+                uses: s.uses || '',
+                impact: s.impact || '',
+                relatedEvents: s.relatedEvents || [],
+                period: s.period || '',
+                description: s.description || '',
+                importance: s.importance || 3,
+                category: '物种', // 为了颜色方案
+                // 保留原始数据以备查询
+                originalData: s
+            };
+        }
+        
+        // 处理旧格式数据（如果有）
         // 解析年份
         const timeStr = s['驯化时间'] || '';
         const year = parseYearString(timeStr);
@@ -201,21 +237,37 @@ export function adaptSpecies(species) {
             location = [s['驯化地点']['经度'], s['驯化地点']['纬度']];
         }
         
+        // 从旧格式提取物种名称
+        let title = '';
+        if (s['物种名称']) {
+            if (typeof s['物种名称'] === 'object' && s['物种名称']['通用名']) {
+                title = s['物种名称']['通用名'];
+            } else if (typeof s['物种名称'] === 'string') {
+                title = s['物种名称'];
+            }
+        } else {
+            title = s['名称'] || '未命名物种';
+        }
+        
         // 返回适配后的物种对象
         return {
-            id: s['物种ID'],
-            title: s['物种名称']['通用名'],
-            scientificName: s['物种名称']['学名'],
+            id: s['物种ID'] || `species-${Math.random().toString(36).substr(2, 9)}`,
+            title: title,
+            scientificName: s['物种名称'] && s['物种名称']['学名'] ? s['物种名称']['学名'] : '',
             year: year,
-            type: s['物种类型'],
+            endYear: year, // 旧格式没有结束年份
+            type: s['物种类型'] || '物种',
             location: location,
-            domesticationStatus: s['驯化状态'],
-            distribution: s['分布区域'],
-            uses: s['用途'],
-            impact: s['对人类发展的贡献'],
+            domesticationStatus: s['驯化状态'] || '',
+            distribution: s['分布区域'] || '',
+            uses: s['用途'] || '',
+            impact: s['对人类发展的贡献'] || '',
             relatedEvents: s['关联事件'] || [],
-            period: s['时期'],
-            category: '物种' // 为了颜色方案
+            period: s['时期'] || '',
+            importance: s['重要性'] || 3,
+            category: '物种', // 为了颜色方案
+            // 保留原始数据以备查询
+            originalData: s
         };
     });
 }
