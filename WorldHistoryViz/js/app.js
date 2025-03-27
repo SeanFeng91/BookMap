@@ -74,6 +74,9 @@ class HistoryMapApp {
             // 添加控件监听器
             this.addEventListeners();
             
+            // 初始化类别筛选
+            this.initCategoryFilters();
+            
             // 加载数据
             await this.loadData();
             
@@ -385,6 +388,39 @@ class HistoryMapApp {
             setTimeout(() => {
                 errorBox.style.display = 'none';
             }, 5000);
+        }
+    }
+    
+    /**
+     * 初始化类别筛选
+     */
+    initCategoryFilters() {
+        // 获取所有类别筛选按钮
+        const categoryButtons = document.querySelectorAll('.category-btn');
+        if (categoryButtons) {
+            categoryButtons.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const category = button.getAttribute('data-category');
+                    console.log(`筛选类别: ${category}`);
+                    
+                    // 更新事件列表
+                    this.eventsManager.setCategory(category);
+                    
+                    // 更新地图标记
+                    this.mapManager.setFilterCategory(category);
+                    
+                    // 重新加载当前年份的全部数据，确保筛选正确应用
+                    const currentYear = this.timelineManager.getCurrentYear();
+                    // 更新事件列表
+                    this.eventsManager.updateEventsList(this.data.historyEvents, currentYear);
+                    // 重新更新地图内容
+                    this.mapManager.updateToYear(currentYear, this.data);
+                    
+                    // 更新按钮样式
+                    categoryButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                });
+            });
         }
     }
 }

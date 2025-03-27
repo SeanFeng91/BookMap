@@ -90,6 +90,15 @@ export class EventsManager {
     }
     
     /**
+     * 设置当前类别过滤器
+     * @param {string} category - 类别名称
+     */
+    setCategory(category) {
+        this.currentCategory = category || 'all';
+        console.log(`事件管理器: 设置类别过滤器为 ${this.currentCategory}`);
+    }
+    
+    /**
      * 更新事件列表
      * @param {Array} events - 事件数组
      * @param {number} year - 当前年份

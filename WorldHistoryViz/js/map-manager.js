@@ -28,28 +28,25 @@ import {
 export class MapManager {
     /**
      * 构造函数
-     * @param {string} mapElementId - 地图容器的DOM元素ID
+     * @param {string} mapElementId - 地图容器ID
      */
     constructor(mapElementId = 'map') {
         this.mapElementId = mapElementId;
         this.map = null;
-        this.baseLayer = null;
+        this.currentGeoJSON = null;
+        this.currentYear = 0;
+        
+        // 图层组
         this.geojsonLayer = null;
         this.markersLayer = null;
+        this.eventMarkersLayer = null;
         this.routesLayer = null;
-        this.technologiesLayer = null; // 技术标记图层
-        this.speciesLayer = null;      // 物种标记图层
-        this.organizationsLayer = null; // 社会组织图层
-        this.currentYear = 0;
-        this.currentGeoJSON = null;
-        this.showEvents = true;
-        this.showMigrations = true;
-        this.showTechnologies = true;  // 是否显示技术
-        this.showSpecies = true;       // 是否显示物种
-        this.showOrganizations = true; // 是否显示社会组织
-        this.eventMarkersMap = new Map(); // 存储事件ID与对应标记的映射
+        this.labelsLayer = null;
+        this.technologiesLayer = null;
+        this.speciesLayer = null;
+        this.organizationsLayer = null;
         
-        // 确保所有数组都被初始化，防止未定义错误
+        // 标记引用
         this.eventMarkers = [];
         this.migrationRoutes = [];
         this.techMarkers = [];
@@ -57,45 +54,29 @@ export class MapManager {
         this.highlightedElements = [];
         this.labels = [];
         this.labelNames = new Set();
+        this.events = [];
         
-        // 国家/地区颜色映射
-        this.countryColors = {
-            // 文明/帝国
-            'roman': '#e74c3c',         // 罗马 - 红色
-            'byzantine': '#9b59b6',     // 拜占庭 - 紫色
-            'persian': '#d35400',       // 波斯 - 橙棕色
-            'mongol': '#795548',        // 蒙古 - 棕色
-            'greek': '#3498db',         // 希腊 - 蓝色
-            'islamic': '#2c3e50',       // 伊斯兰 - 深蓝色
-            'ottoman': '#e67e22',       // 奥斯曼 - 橙色
-            'chinese': '#27ae60',       // 中国 - 绿色
-            'indian': '#8e44ad',        // 印度 - 深紫色
-            'maya': '#f39c12',          // 玛雅 - 橙黄色
-            'inca': '#16a085',          // 印加 - 青绿色
-            'aztec': '#c0392b',         // 阿兹特克 - 深红色
-            
-            // 区域
-            'europe': '#3498db',        // 欧洲 - 蓝色
-            'asia': '#27ae60',          // 亚洲 - 绿色
-            'africa': '#f1c40f',        // 非洲 - 黄色
-            'north_america': '#e74c3c', // 北美洲 - 红色
-            'south_america': '#e67e22', // 南美洲 - 橙色
-            'oceania': '#1abc9c',       // 大洋洲 - 青色
-            'middle_east': '#d35400',   // 中东 - 橙棕色
-            
-            // 默认颜色
-            'default': '#95a5a6'        // 默认 - 灰色
-        };
+        // 显示控制
+        this.showEvents = true;
+        this.showMigrations = true;
+        this.showTechnologies = false;
+        this.showSpecies = false;
+        this.showOrganizations = false;
         
-        // 类别颜色映射
-        this.categoryColors = {
-            '技术': '#2196F3',  // 蓝色
-            '农业': '#4CAF50',  // 绿色
-            '文明': '#9C27B0',  // 紫色
-            '征服': '#F44336',  // 红色
-            '疾病': '#FF9800',  // 橙色
-            '迁徙': '#795548'   // 棕色
-        };
+        // 类别筛选
+        this.filterCategory = 'all';
+        
+        // 保持this上下文
+        this.updateLabelsVisibility = this.updateLabelsVisibility.bind(this);
+    }
+    
+    /**
+     * 设置类别筛选
+     * @param {string} category - 类别名称
+     */
+    setFilterCategory(category) {
+        this.filterCategory = category || 'all';
+        console.log(`地图管理器: 设置类别过滤器为 ${this.filterCategory}`);
     }
     
     /**
@@ -665,10 +646,10 @@ export class MapManager {
     
     /**
      * 更新事件标记
-     * @param {Array} events - 事件数组
+     * @param {Array} events - 事件数据数组
      */
     updateEventMarkers(events) {
-        console.log('更新事件标记...');
+        console.log(`更新事件标记... 当前类别过滤: ${this.filterCategory}`);
         
         // 清除现有的事件标记
         this.clearEventMarkers();
@@ -681,9 +662,9 @@ export class MapManager {
         // 保存原始事件数据，供highlightEvent等方法使用
         this.events = events;
         
-        // 获取所有事件并添加相关性属性
+        // 获取所有事件并添加相关性属性，应用类别过滤
         const eventsWithRelevance = this.getRelevantEvents(events, this.currentYear);
-        console.log(`处理 ${eventsWithRelevance.length} 个事件标记`);
+        console.log(`处理 ${eventsWithRelevance.length} 个事件标记，类别过滤: ${this.filterCategory}`);
         
         // 创建GeoJSON特征集合
         const features = eventsWithRelevance.map(event => {
@@ -983,23 +964,36 @@ export class MapManager {
             return;
         }
         
+        // 输出迁徙数据结构以便调试
+        console.log('迁徙数据示例:', migrations[0]);
+        
         // 确保routesLayer存在
         if (!this.routesLayer) {
             this.routesLayer = L.layerGroup().addTo(this.map);
+        } else {
+            console.log('使用现有的routesLayer图层');
         }
         
         // 获取当前活跃的迁徙
         const activeMigrations = this.getActiveMigrations(migrations, this.currentYear);
-        console.log(`找到 ${activeMigrations.length} 条活跃迁徙路线`);
+        console.log(`找到 ${activeMigrations.length} 条活跃迁徙路线，当前年份: ${this.currentYear}`);
+        
+        if (activeMigrations.length === 0) {
+            console.log('没有与当前年份相关的迁徙路线');
+            return;
+        }
         
         // 为每条迁徙路线创建曲线
-        activeMigrations.forEach(migration => {
+        activeMigrations.forEach((migration, index) => {
+            console.log(`处理迁徙路线 #${index}:`, migration.name || '未命名');
+            
             // 检查迁徙是否有完整的起点和终点坐标
             if (!migration.startCoordinates || !migration.endCoordinates || 
                 !Array.isArray(migration.startCoordinates) || !Array.isArray(migration.endCoordinates) ||
                 migration.startCoordinates.length < 2 || migration.endCoordinates.length < 2) {
                 
-                console.warn(`迁徙路线 "${migration.name || '未命名'}" 坐标数据不完整，跳过`);
+                console.warn(`迁徙路线 "${migration.name || '未命名'}" 坐标数据不完整:`, 
+                    migration.startCoordinates, migration.endCoordinates);
                 return;
             }
             
@@ -1144,21 +1138,17 @@ export class MapManager {
         // 计算控制点
         const controlPoint = [center[0] + offsetX, center[1] + offsetY];
         
-        // 使用贝塞尔曲线生成路径点
+        // 使用二次贝塞尔曲线生成路径点
         const points = [];
         const steps = 30; // 平滑度
         
-        for (let t = 0; t <= steps; t++) {
-            const ratio = t / steps;
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
             
-            // 二次贝塞尔曲线公式
-            const lat = (1 - ratio) * (1 - ratio) * startLat +
-                        2 * (1 - ratio) * ratio * controlPoint[0] +
-                        ratio * ratio * endLat;
-            
-            const lng = (1 - ratio) * (1 - ratio) * startLng +
-                        2 * (1 - ratio) * ratio * controlPoint[1] +
-                        ratio * ratio * endLng;
+            // 二次贝塞尔曲线公式: B(t) = (1-t)²*P0 + 2(1-t)t*P1 + t²*P2
+            // 其中 P0 是起点，P1 是控制点，P2 是终点
+            const lat = (1 - t) * (1 - t) * startLat + 2 * (1 - t) * t * controlPoint[0] + t * t * endLat;
+            const lng = (1 - t) * (1 - t) * startLng + 2 * (1 - t) * t * controlPoint[1] + t * t * endLng;
             
             points.push([lat, lng]);
         }
@@ -1804,6 +1794,8 @@ export class MapManager {
     getRelevantEvents(events, year) {
         if (!events || !Array.isArray(events)) return [];
         
+        console.log(`处理事件: 年份=${year}, 类别过滤=${this.filterCategory}`);
+        
         // 计算每个事件的相关性并进行筛选
         return events.map(event => {
             // 确保兼容新旧数据格式
@@ -1846,7 +1838,18 @@ export class MapManager {
             
             // 添加相关性属性
             return {...event, relevance};
-        }).filter(event => event.relevance > 0.1); // 只保留相关性大于0.1的事件
+        })
+        .filter(event => {
+            // 首先筛选相关性
+            if (event.relevance <= 0.1) return false;
+            
+            // 然后按类别筛选
+            if (this.filterCategory !== 'all') {
+                return event.category === this.filterCategory;
+            }
+            
+            return true;
+        });
     }
     
     /**
@@ -1861,22 +1864,60 @@ export class MapManager {
             return [];
         }
         
-        console.log(`正在搜索${year}年活跃的迁徙路线，共${migrations.length}条路线`);
+        // 确保year是数字
+        const numericYear = Number(year);
+        if (isNaN(numericYear)) {
+            console.warn(`无效的年份: ${year}`);
+            return [];
+        }
+        
+        console.log(`正在搜索${numericYear}年活跃的迁徙路线，共${migrations.length}条路线`);
+        
+        // 记录每个迁徙的年份范围，方便调试
+        migrations.forEach((m, i) => {
+            if (i < 5) { // 只打印前5个以避免日志过多
+                console.log(`迁徙 #${i}: ${m.name || '未命名'}, 年份范围: ${m.startYear || '?'} - ${m.endYear || '?'}`);
+            }
+        });
         
         const activeMigrations = migrations.filter(migration => {
+            // 首先验证迁徙数据有效性
+            if (!migration) {
+                console.warn('发现无效的迁徙数据项');
+                return false;
+            }
+            
+            // 确保坐标数据存在
+            if (!migration.startCoordinates || !migration.endCoordinates) {
+                // 不显示警告，因为这个检查在后面还会做
+                return false;
+            }
+            
             // 如果有开始年份和结束年份，检查当前年份是否在这个范围内
             if (migration.startYear !== undefined && migration.endYear !== undefined) {
-                return year >= migration.startYear && year <= migration.endYear;
+                const isActive = numericYear >= migration.startYear && numericYear <= migration.endYear;
+                if (isActive) {
+                    console.log(`匹配迁徙: ${migration.name || '未命名'}, ${migration.startYear}-${migration.endYear}`);
+                }
+                return isActive;
             }
             
             // 如果只有开始年份，假设迁徙持续100年
             if (migration.startYear !== undefined) {
-                return year >= migration.startYear && year <= (migration.startYear + 100);
+                const isActive = numericYear >= migration.startYear && numericYear <= (migration.startYear + 100);
+                if (isActive) {
+                    console.log(`匹配迁徙(只有开始年份): ${migration.name || '未命名'}, ${migration.startYear}-${migration.startYear+100}`);
+                }
+                return isActive;
             }
             
             // 如果只有结束年份，假设迁徙提前100年开始
             if (migration.endYear !== undefined) {
-                return year >= (migration.endYear - 100) && year <= migration.endYear;
+                const isActive = numericYear >= (migration.endYear - 100) && numericYear <= migration.endYear;
+                if (isActive) {
+                    console.log(`匹配迁徙(只有结束年份): ${migration.name || '未命名'}, ${migration.endYear-100}-${migration.endYear}`);
+                }
+                return isActive;
             }
             
             // 如果有原始数据的时间范围，尝试解析
@@ -1887,11 +1928,16 @@ export class MapManager {
                     const startYear = this.parseYearString(startStr);
                     const endYear = this.parseYearString(endStr);
                     if (startYear !== 0 && endYear !== 0) {
-                        return year >= startYear && year <= endYear;
+                        const isActive = numericYear >= startYear && numericYear <= endYear;
+                        if (isActive) {
+                            console.log(`匹配迁徙(原始数据): ${migration.name || '未命名'}, ${startYear}-${endYear}`);
+                        }
+                        return isActive;
                     }
                 }
             }
             
+            // 如果没有明确的年份范围，默认排除
             return false;
         });
         
